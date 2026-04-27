@@ -130,3 +130,86 @@ export interface ExecuteRequest {
   step_interval?: number
   data_source_id?: number
 }
+
+// 测试用例模块
+export interface TestCaseModule {
+  id: number
+  team_id: number
+  name: string
+  parent_id: number | null
+  description: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// 测试用例创建请求
+export interface TestCaseCreate {
+  name: string
+  module_id?: number | null
+  description?: string | null
+  status?: 'enabled' | 'disabled'
+  priority?: 'P0' | 'P1' | 'P2' | 'P3'
+  tags?: string[] | null
+  variables?: any[] | null
+  execution_condition?: Record<string, any> | null
+  steps?: TestCaseStepCreate[] | null
+}
+
+// 测试用例更新请求
+export interface TestCaseUpdate {
+  name?: string
+  module_id?: number | null
+  description?: string | null
+  status?: 'enabled' | 'disabled'
+  priority?: 'P0' | 'P1' | 'P2' | 'P3'
+  tags?: string[] | null
+  variables?: any[] | null
+  execution_condition?: Record<string, any> | null
+  steps?: TestCaseStepCreate[] | null
+}
+
+// 测试步骤创建请求
+export interface TestCaseStepCreate {
+  api_id: number
+  step_name?: string | null
+  sort_order?: number
+  enabled?: boolean
+  override_headers?: Record<string, any> | null
+  override_params?: Record<string, any> | null
+  override_body?: string | null
+  override_body_type?: string | null
+  override_cookies?: any[] | null
+  assertions?: any[] | null
+  extractors?: any[] | null
+  pre_script?: string | null
+  post_script?: string | null
+  timeout_config?: Record<string, any> | null
+  execution_condition?: Record<string, any> | null
+}
+
+// 数据源创建请求
+export interface DataSourceCreate {
+  name: string
+  source_type: 'csv' | 'json' | 'database'
+  source_config: Record<string, any>
+  enabled?: boolean
+  iteration_mode?: 'sequential' | 'random'
+}
+
+// 数据源更新请求
+export interface DataSourceUpdate {
+  name?: string
+  source_type?: 'csv' | 'json' | 'database'
+  source_config?: Record<string, any>
+  enabled?: boolean
+  iteration_mode?: 'sequential' | 'random'
+}
+
+// 分页响应
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+}
