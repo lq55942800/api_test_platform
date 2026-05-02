@@ -1,5 +1,7 @@
 # 测试用例管理系统前端实施计划
 
+> **注意：数据驱动功能已从系统中移除。** 文档中涉及数据驱动（DataSource、数据源配置、数据驱动执行）的内容已不再适用，功能由步骤级条件控制(if/for/while)替代。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 构建完整的测试用例管理系统前端，包括测试用例的创建、编辑、执行和结果查看功能。

@@ -14,7 +14,9 @@ class TestCaseStep(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False)
-    api_id = Column(Integer, ForeignKey("api_definitions.id"), nullable=False)
+    api_id = Column(Integer, ForeignKey("api_definitions.id"), nullable=True)
+    step_type = Column(String(20), default="api")
+    parent_step_id = Column(Integer, ForeignKey("test_case_steps.id", ondelete="CASCADE"), nullable=True)
     step_name = Column(String(100), nullable=True)
     sort_order = Column(Integer, default=0)
     enabled = Column(Boolean, default=True)
@@ -34,3 +36,4 @@ class TestCaseStep(Base):
 
     test_case = relationship("TestCase", back_populates="steps")
     api = relationship("ApiDefinition")
+    parent_step = relationship("TestCaseStep", remote_side=[id], backref="children_steps")

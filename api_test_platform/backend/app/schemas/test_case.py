@@ -1,10 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Any, Dict
 from datetime import datetime
+import json
 
 
 class TestCaseStepCreate(BaseModel):
-    api_id: int
+    step_type: str = Field("api", description="步骤类型: api/if/for/while")
+    api_id: Optional[int] = None
+    parent_step_id: Optional[int] = Field(None, description="父步骤ID")
     step_name: Optional[str] = None
     sort_order: int = 0
     enabled: bool = True
@@ -23,7 +26,10 @@ class TestCaseStepCreate(BaseModel):
 
 class TestCaseStepResponse(TestCaseStepCreate):
     id: int
+    step_type: str = "api"
     test_case_id: int
+    api_id: Optional[int] = None
+    parent_step_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -39,7 +45,6 @@ class TestCaseCreate(BaseModel):
     priority: str = "P2"
     tags: Optional[List[str]] = None
     variables: Optional[List[Dict[str, Any]]] = None
-    execution_condition: Optional[Dict[str, Any]] = None
     steps: Optional[List[TestCaseStepCreate]] = None
 
 
@@ -51,7 +56,6 @@ class TestCaseUpdate(BaseModel):
     priority: Optional[str] = None
     tags: Optional[List[str]] = None
     variables: Optional[List[Dict[str, Any]]] = None
-    execution_condition: Optional[Dict[str, Any]] = None
     steps: Optional[List[TestCaseStepCreate]] = None
 
 
@@ -65,7 +69,6 @@ class TestCaseResponse(BaseModel):
     priority: str
     tags: Optional[List[str]]
     variables: Optional[List[Dict[str, Any]]]
-    execution_condition: Optional[Dict[str, Any]]
     created_by: int
     created_at: datetime
     updated_at: datetime
@@ -73,6 +76,17 @@ class TestCaseResponse(BaseModel):
 
     class Config:
         from_attributes = True
+    
+    @field_validator('tags', 'variables', mode='before')
+    @classmethod
+    def parse_json_fields(cls, v):
+        """解析JSON字符串字段"""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except:
+                return None
+        return v
 
 
 class TestCaseExecuteRequest(BaseModel):
@@ -81,7 +95,6 @@ class TestCaseExecuteRequest(BaseModel):
     save_record: bool = Field(True, description="是否保存执行记录")
     timeout: int = Field(600000, description="超时时间(毫秒)")
     step_interval: int = Field(0, description="步骤间隔(毫秒)")
-    data_source_id: Optional[int] = Field(None, description="数据源ID(数据驱动时)")
 
 
 class CrossTeamCopyRequest(BaseModel):

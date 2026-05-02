@@ -22,5 +22,6 @@ class TestCaseModule(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    team = relationship("Team", back_populates="modules")
     test_cases = relationship("TestCase", back_populates="module")
     children = relationship("TestCaseModule", backref="parent", remote_side=[id])

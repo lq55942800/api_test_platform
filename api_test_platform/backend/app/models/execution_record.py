@@ -65,6 +65,8 @@ class StepExecutionRecord(Base):
     response_time = Column(Integer, nullable=True)
     assertions = Column(Text, nullable=True)
     extractors = Column(Text, nullable=True)
+    pre_actions = Column(Text, nullable=True)
+    post_actions = Column(Text, nullable=True)
     start_time = Column(DateTime, nullable=True)
     end_time = Column(DateTime, nullable=True)
     duration = Column(Integer, nullable=True)

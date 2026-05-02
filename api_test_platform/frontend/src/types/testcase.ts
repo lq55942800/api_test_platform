@@ -1,27 +1,51 @@
-// 测试步骤
+export interface StepExecutionCondition {
+  type: 'if' | 'for' | 'while'
+  logic?: 'and' | 'or'
+  conditions?: string[]
+  expression?: string
+  for_mode?: 'count' | 'items'
+  loop_count?: number
+  loop_variable?: string
+  loop_items_source?: 'variable' | 'custom'
+  loop_items_variable?: string
+  loop_items?: string
+  while_mode?: 'expression' | 'count'
+  description?: string
+}
+
+export interface TestCaseVariable {
+  key: string
+  value: string
+  default_value: string
+  description: string
+  enabled: boolean
+}
+
 export interface TestCaseStep {
-  id: number
-  test_case_id: number
-  api_id: number
+  id?: number
+  test_case_id?: number
+  step_type: 'api' | 'if' | 'for' | 'while'
+  api_id?: number | null
+  parent_step_id?: number | null
   step_name: string | null
   sort_order: number
   enabled: boolean
-  override_headers: Record<string, any> | null
-  override_params: Record<string, any> | null
-  override_body: string | null
-  override_body_type: string | null
-  override_cookies: any[] | null
-  assertions: any[] | null
-  extractors: any[] | null
-  pre_script: string | null
-  post_script: string | null
-  timeout_config: Record<string, any> | null
-  execution_condition: Record<string, any> | null
-  created_at: string
-  updated_at: string
+  override_headers?: Record<string, any> | null
+  override_params?: Record<string, any> | null
+  override_body?: string | null
+  override_body_type?: string | null
+  override_cookies?: any[] | null
+  assertions?: any[] | null
+  extractors?: any[] | null
+  pre_script?: string | null
+  post_script?: string | null
+  timeout_config?: Record<string, any> | null
+  execution_condition?: StepExecutionCondition | null
+  created_at?: string
+  updated_at?: string
+  children?: TestCaseStep[]
 }
 
-// 测试用例
 export interface TestCase {
   id: number
   team_id: number
@@ -31,147 +55,17 @@ export interface TestCase {
   status: 'enabled' | 'disabled'
   priority: 'P0' | 'P1' | 'P2' | 'P3'
   tags: string[] | null
-  variables: any[] | null
-  execution_condition: Record<string, any> | null
+  variables: TestCaseVariable[] | null
   created_by: number
   created_at: string
   updated_at: string
   steps: TestCaseStep[] | null
 }
 
-// 数据源
-export interface DataSource {
-  id: number
-  test_case_id: number
-  name: string
-  source_type: 'csv' | 'json' | 'database'
-  source_config: Record<string, any>
-  enabled: boolean
-  iteration_mode: 'sequential' | 'random'
-  created_at: string
-  updated_at: string
-}
-
-// 执行记录
-export interface ExecutionRecord {
-  id: number
-  team_id: number
-  test_case_id: number
-  test_case_name: string
-  environment_id: number | null
-  environment_name: string | null
-  execution_type: string | null
-  status: 'pending' | 'running' | 'passed' | 'failed' | 'error' | 'skipped'
-  total_steps: number
-  passed_steps: number
-  failed_steps: number
-  skipped_steps: number
-  data_iteration_count: number
-  data_iteration_passed: number
-  data_iteration_failed: number
-  start_time: string | null
-  end_time: string | null
-  duration: number | null
-  executor_id: number | null
-  executor_name: string | null
-  error_message: string | null
-  created_at: string
-}
-
-// 步骤执行记录
-export interface StepExecutionRecord {
-  id: number
-  case_execution_id: number
-  step_id: number | null
-  step_name: string | null
-  step_order: number | null
-  api_id: number | null
-  api_name: string | null
-  status: string
-  skip_reason: string | null
-  request_url: string | null
-  request_method: string | null
-  request_headers: string | null
-  request_body: string | null
-  response_status: number | null
-  response_headers: string | null
-  response_body: string | null
-  response_time: number | null
-  assertions: string | null
-  extractors: string | null
-  start_time: string | null
-  end_time: string | null
-  duration: number | null
-  error_message: string | null
-}
-
-// 跨团队复制检查
-export interface CrossTeamCopyCheck {
-  can_copy: boolean
-  warnings: Array<{
-    type: string
-    message: string
-    suggestion: string
-  }>
-  services_to_check: Array<{
-    source_service: string
-    target_exists: boolean
-    source_servers: string[]
-  }>
-  variables_to_check: string[]
-}
-
-// 执行请求
-export interface ExecuteRequest {
-  environment_id: number
-  fail_strategy?: 'stop' | 'continue'
-  save_record?: boolean
-  timeout?: number
-  step_interval?: number
-  data_source_id?: number
-}
-
-// 测试用例模块
-export interface TestCaseModule {
-  id: number
-  team_id: number
-  name: string
-  parent_id: number | null
-  description: string | null
-  sort_order: number
-  created_at: string
-  updated_at: string
-}
-
-// 测试用例创建请求
-export interface TestCaseCreate {
-  name: string
-  module_id?: number | null
-  description?: string | null
-  status?: 'enabled' | 'disabled'
-  priority?: 'P0' | 'P1' | 'P2' | 'P3'
-  tags?: string[] | null
-  variables?: any[] | null
-  execution_condition?: Record<string, any> | null
-  steps?: TestCaseStepCreate[] | null
-}
-
-// 测试用例更新请求
-export interface TestCaseUpdate {
-  name?: string
-  module_id?: number | null
-  description?: string | null
-  status?: 'enabled' | 'disabled'
-  priority?: 'P0' | 'P1' | 'P2' | 'P3'
-  tags?: string[] | null
-  variables?: any[] | null
-  execution_condition?: Record<string, any> | null
-  steps?: TestCaseStepCreate[] | null
-}
-
-// 测试步骤创建请求
 export interface TestCaseStepCreate {
-  api_id: number
+  step_type?: 'api' | 'if' | 'for' | 'while'
+  api_id?: number | null
+  parent_step_id?: number | null
   step_name?: string | null
   sort_order?: number
   enabled?: boolean
@@ -185,28 +79,101 @@ export interface TestCaseStepCreate {
   pre_script?: string | null
   post_script?: string | null
   timeout_config?: Record<string, any> | null
-  execution_condition?: Record<string, any> | null
+  execution_condition?: StepExecutionCondition | null
 }
 
-// 数据源创建请求
-export interface DataSourceCreate {
+export interface TestCaseCreate {
   name: string
-  source_type: 'csv' | 'json' | 'database'
-  source_config: Record<string, any>
-  enabled?: boolean
-  iteration_mode?: 'sequential' | 'random'
+  module_id?: number | null
+  description?: string | null
+  status?: string
+  priority?: string
+  tags?: string[] | null
+  variables?: TestCaseVariable[] | null
+  steps?: TestCaseStepCreate[] | null
 }
 
-// 数据源更新请求
-export interface DataSourceUpdate {
+export interface TestCaseUpdate {
+  name?: string | null
+  module_id?: number | null
+  description?: string | null
+  status?: string | null
+  priority?: string | null
+  tags?: string[] | null
+  variables?: TestCaseVariable[] | null
+  steps?: TestCaseStepCreate[] | null
+}
+
+export interface ExecutionRecord {
+  id: number
+  test_case_id: number
+  environment_id: number
+  status: string
+  total_steps: number
+  passed_steps: number
+  failed_steps: number
+  skipped_steps: number
+  start_time: string | null
+  end_time: string | null
+  duration: number
+  error_message: string | null
+  created_at: string
+}
+
+export interface StepExecutionRecord {
+  id: number
+  execution_id: number
+  step_id: number
+  step_name: string
+  status: string
+  start_time: string | null
+  end_time: string | null
+  duration: number
+  request_data: any | null
+  response_data: any | null
+  error_message: string | null
+}
+
+export interface CrossTeamCopyCheck {
+  can_copy: boolean
+  missing_environments: string[]
+  missing_apis: string[]
+  warnings: string[]
+}
+
+export interface ExecuteRequest {
+  environment_id: number
+  fail_strategy?: string
+  save_record?: boolean
+  timeout?: number
+  step_interval?: number
+}
+
+export interface TestCaseModule {
+  id: number
+  team_id: number
+  name: string
+  parent_id: number | null
+  description: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TestCaseModuleCreate {
+  name: string
+  parent_id?: number | null
+  description?: string | null
+  sort_order?: number
+}
+
+export interface TestCaseModuleUpdate {
   name?: string
-  source_type?: 'csv' | 'json' | 'database'
-  source_config?: Record<string, any>
-  enabled?: boolean
-  iteration_mode?: 'sequential' | 'random'
+  parent_id?: number | null
+  description?: string | null
+  sort_order?: number
 }
 
-// 分页响应
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
