@@ -1,5 +1,5 @@
 <template>
-  <div class="api-list-page">
+  <div class="page-container">
     <div class="left-panel">
       <ModuleTree @select="handleModuleSelect" />
       <div class="left-section" v-if="recentVisits.length > 0">
@@ -23,29 +23,33 @@
     </div>
 
     <div class="right-panel">
-      <div class="page-header">
-        <div class="header-content">
-          <h1 class="page-title">接口管理</h1>
-          <p class="page-subtitle">管理API接口资产，支持录入、导入、调试和版本管理</p>
-        </div>
-      </div>
+      <PageHeader
+        title="接口管理"
+        subtitle="管理API接口资产，支持录入、导入、调试和版本管理"
+      />
 
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <el-button type="primary" class="primary-btn" @click="router.push('/apis/new')">
+      <ToolBar
+        :show-batch-bar="selectedApis.length > 0"
+        :batch-count="selectedApis.length"
+        @batch-delete="handleBatchDelete"
+        @clear-selection="handleClearSelection"
+      >
+        <template #left>
+          <el-button type="primary" class="btn-primary" @click="router.push('/apis/new')">
             <el-icon><Plus /></el-icon>
             新建接口
           </el-button>
-          <el-button class="outline-btn" @click="showImportDialog = true">
+          <el-button class="btn-outline" @click="showImportDialog = true">
             <el-icon><Upload /></el-icon>
             导入
           </el-button>
-          <el-button class="outline-btn" @click="handleExport">
+          <el-button class="btn-outline" @click="handleExport">
             <el-icon><Download /></el-icon>
             导出
           </el-button>
-        </div>
-        <div class="toolbar-right">
+        </template>
+
+        <template #right>
           <el-input
             v-model="searchText"
             placeholder="搜索接口名称/路径"
@@ -65,122 +69,105 @@
           <el-select v-model="filterTagId" placeholder="标签" clearable class="filter-select">
             <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
-        </div>
-      </div>
+        </template>
 
-      <div class="batch-bar" v-if="selectedApis.length > 0">
-        <span class="batch-info">已选择 {{ selectedApis.length }} 项</span>
-        <el-button size="small" type="danger" plain @click="handleBatchDelete">批量删除</el-button>
-        <el-button size="small" plain @click="showBatchMoveDialog = true">批量移动</el-button>
-        <el-dropdown trigger="click" @command="handleBatchStatusCommand">
-          <el-button size="small" plain>
-            批量改状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="enabled">启用</el-dropdown-item>
-              <el-dropdown-item command="disabled">禁用</el-dropdown-item>
-              <el-dropdown-item command="deprecated">废弃</el-dropdown-item>
-            </el-dropdown-menu>
+        <template #batch-actions>
+          <el-dropdown trigger="click" @command="(cmd: string) => handleBatchStatusCommand(cmd)">
+            <el-button size="small" plain>
+              批量改状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="enabled">启用</el-dropdown-item>
+                <el-dropdown-item command="disabled">禁用</el-dropdown-item>
+                <el-dropdown-item command="deprecated">废弃</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+      </ToolBar>
+
+      <DataTable
+        :loading="loading"
+        :data="apis"
+        :total="total"
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" align="center" />
+        <el-table-column label="方法" width="80" align="center">
+          <template #default="{ row }">
+            <MethodTag :method="row.method" />
           </template>
-        </el-dropdown>
-        <el-button size="small" plain @click="handleClearSelection">取消选择</el-button>
-      </div>
-
-      <div class="table-container">
-        <el-table
-          ref="tableRef"
-          :data="apis"
-          v-loading="loading"
-          style="width: 100%"
-          @selection-change="handleSelectionChange"
-          :header-cell-style="{ backgroundColor: '#fafafa', fontWeight: 600 }"
-        >
-          <el-table-column type="selection" width="40" align="center" />
-          <el-table-column label="方法" width="80" align="center">
-            <template #default="{ row }">
-              <MethodTag :method="row.method" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="接口名称" min-width="180">
-            <template #default="{ row }">
-              <span class="api-name" @click="handleGoDetail(row)">{{ row.name }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="path" label="路径" min-width="280">
-            <template #default="{ row }">
-              <span class="api-path">{{ row.path }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="模块" width="120" align="center">
-            <template #default="{ row }">
-              <span class="module-name">{{ row.module_name || '-' }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="80" align="center">
-            <template #default="{ row }">
-              <StatusTag :status="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column label="标签" width="150">
-            <template #default="{ row }">
-              <div class="tag-list">
-                <el-tag
-                  v-for="tag in parseTags(row.tags)"
-                  :key="tag"
-                  size="small"
-                  class="api-tag"
-                >{{ tag }}</el-tag>
-                <span v-if="!parseTags(row.tags).length" class="no-tag">-</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="updated_at" label="更新时间" width="160" align="center">
-            <template #default="{ row }">
-              <span class="update-time">{{ formatDate(row.updated_at) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right" align="center">
-            <template #default="{ row }">
-              <el-button type="primary" link size="small" @click="handleDebug(row)">
-                <el-icon><VideoPlay /></el-icon>调试
+        </el-table-column>
+        <el-table-column prop="name" label="接口名称" min-width="180">
+          <template #default="{ row }">
+            <span class="api-name" @click="handleGoDetail(row)">{{ row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="path" label="路径" min-width="280">
+          <template #default="{ row }">
+            <span class="api-path">{{ row.path }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="模块" width="120" align="center">
+          <template #default="{ row }">
+            <span class="module-name">{{ row.module_name || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <StatusTag :status="row.status" />
+          </template>
+        </el-table-column>
+        <el-table-column label="标签" width="150">
+          <template #default="{ row }">
+            <div class="tag-list">
+              <el-tag
+                v-for="tag in parseTags(row.tags)"
+                :key="tag"
+                size="small"
+                class="api-tag"
+              >{{ tag }}</el-tag>
+              <span v-if="!parseTags(row.tags).length" class="no-tag">-</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="updated_at" label="更新时间" width="160" align="center">
+          <template #default="{ row }">
+            <span class="update-time">{{ formatDate(row.updated_at) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="handleDebug(row)">
+              <el-icon><VideoPlay /></el-icon>调试
+            </el-button>
+            <el-button type="primary" link size="small" @click="handleGoDetail(row)">
+              <el-icon><Edit /></el-icon>编辑
+            </el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
+              <el-button type="primary" link size="small">
+                <el-icon><More /></el-icon>
               </el-button>
-              <el-button type="primary" link size="small" @click="handleGoDetail(row)">
-                <el-icon><Edit /></el-icon>编辑
-              </el-button>
-              <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
-                <el-button type="primary" link size="small">
-                  <el-icon><More /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="copy">
-                      <el-icon><CopyDocument /></el-icon>复制
-                    </el-dropdown-item>
-                    <el-dropdown-item command="history">
-                      <el-icon><Clock /></el-icon>版本历史
-                    </el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>
-                      <el-icon color="#F56C6C"><Delete /></el-icon><span style="color:#F56C6C">删除</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            background
-          />
-        </div>
-      </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="copy">
+                    <el-icon><CopyDocument /></el-icon>复制
+                  </el-dropdown-item>
+                  <el-dropdown-item command="history">
+                    <el-icon><Clock /></el-icon>版本历史
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <el-icon color="#F56C6C"><Delete /></el-icon><span style="color:#F56C6C">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+      </DataTable>
     </div>
 
     <DebugPanel :api-data="debugApi" />
@@ -264,6 +251,9 @@ import { useApiStore, useModuleStore, useDebugStore, useRecentStore, useTagStore
 import { HTTP_METHODS, API_STATUSES, HttpMethod, ApiStatus } from '@/types/api'
 import type { ApiDefinition, ApiDefinitionCreate } from '@/types/api'
 import type { FormInstance, FormRules } from 'element-plus'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ToolBar from '@/components/common/ToolBar.vue'
+import DataTable from '@/components/common/DataTable.vue'
 import ModuleTree from './components/ModuleTree.vue'
 import MethodTag from './components/MethodTag.vue'
 import StatusTag from './components/StatusTag.vue'
@@ -288,7 +278,6 @@ const filterTagId = ref<number | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const selectedApis = ref<ApiDefinition[]>([])
-const tableRef = ref<any>()
 const showCreateDialog = ref(false)
 const showImportDialog = ref(false)
 const showBatchMoveDialog = ref(false)
@@ -374,17 +363,6 @@ function handleModuleSelect(moduleId: number | null) {
   fetchApis()
 }
 
-function handleOpenCreateDialog() {
-  createForm.value = {
-    name: '',
-    method: HttpMethod.GET,
-    path: '',
-    description: '',
-    module_id: moduleStore.modules.length > 0 ? moduleStore.modules[0].id : undefined
-  }
-  showCreateDialog.value = true
-}
-
 function handleGoDetail(row: ApiDefinition) {
   router.push(`/apis/${row.id}`)
 }
@@ -399,7 +377,6 @@ function handleSelectionChange(selection: ApiDefinition[]) {
 }
 
 function handleClearSelection() {
-  tableRef.value?.clearSelection()
   selectedApis.value = []
 }
 
@@ -414,7 +391,6 @@ async function handleCreate() {
     showCreateDialog.value = false
     createForm.value = { name: '', method: HttpMethod.GET, path: '', description: '', module_id: undefined }
     await Promise.all([fetchApis(), moduleStore.fetchModules()])
-  } catch (error: any) {
   } finally {
     submitting.value = false
   }
@@ -479,7 +455,6 @@ async function handleBatchMove() {
     showBatchMoveDialog.value = false
     selectedApis.value = []
     await Promise.all([fetchApis(), moduleStore.fetchModules()])
-  } catch (error: any) {
   } finally {
     submitting.value = false
   }
@@ -537,7 +512,7 @@ function formatTimeAgo(date: string) {
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  
+
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   if (hours < 24) return `${hours}小时前`
@@ -548,19 +523,19 @@ function formatTimeAgo(date: string) {
 </script>
 
 <style scoped>
-.api-list-page {
+.page-container {
   display: flex;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background-color: #f5f5f7;
+  background-color: var(--color-surface-200);
 }
 
 .left-panel {
   width: 220px;
   min-width: 220px;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e4e7;
+  background-color: #fff;
+  border-right: 1px solid var(--color-neutral-200);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -568,7 +543,7 @@ function formatTimeAgo(date: string) {
 }
 
 .left-section {
-  border-top: 1px solid #e5e4e7;
+  border-top: 1px solid var(--color-neutral-200);
 }
 
 .section-header {
@@ -578,7 +553,7 @@ function formatTimeAgo(date: string) {
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
-  color: #6b6375;
+  color: var(--color-neutral-500);
 }
 
 .section-icon {
@@ -605,7 +580,7 @@ function formatTimeAgo(date: string) {
 }
 
 .fav-item:hover {
-  background-color: #f4f3ec;
+  background-color: var(--color-surface-200);
 }
 
 .item-name {
@@ -613,220 +588,90 @@ function formatTimeAgo(date: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #08060d;
+  color: var(--color-neutral-900);
 }
 
 .item-time {
   font-size: 11px;
-  color: #C0C4CC;
+  color: var(--color-neutral-400);
   flex-shrink: 0;
-}
-
-.empty-hint {
-  font-size: 12px;
-  color: #C0C4CC;
-  padding: 12px 8px;
-  text-align: center;
 }
 
 .right-panel {
   flex: 1;
   min-width: 0;
-  padding: 20px;
+  padding: 1.25rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  gap: 0;
 }
 
-.page-header {
-  margin-bottom: 16px;
-  flex-shrink: 0;
-}
-
-.header-content {
-  padding: 16px 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e4e7;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #08060d;
-  margin: 0 0 8px 0;
-  line-height: 32px;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #6b6375;
-  margin: 0;
-  line-height: 22px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
+.btn-primary {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 12px;
-  padding: 12px 16px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e4e7;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
 }
 
-.toolbar-left {
-  display: flex;
-  gap: 8px;
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
 }
 
-.toolbar-left .el-button {
-  padding: 8px 16px;
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 8px;
+.btn-outline {
+  display: inline-flex;
   align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-neutral-600);
+  background-color: transparent;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
 }
 
-.primary-btn {
-  background-color: #aa3bff !important;
-  border-color: #aa3bff !important;
-}
-
-.primary-btn:hover {
-  background-color: #9333ea !important;
-  border-color: #9333ea !important;
-}
-
-.outline-btn {
-  border-color: #dcdfe6;
-  color: #606266;
-}
-
-.outline-btn:hover {
-  border-color: #aa3bff;
-  color: #aa3bff;
+.btn-outline:hover {
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-500);
 }
 
 .search-input {
   width: 280px;
-  max-width: 100%;
 }
 
 .filter-select {
-  width: 90px;
-  min-width: 70px;
-}
-
-.batch-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.25);
-}
-
-.batch-info {
-  font-size: 13px;
-  font-weight: 500;
-  padding-right: 12px;
-  margin-right: 4px;
-  border-right: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-.batch-bar :deep(.el-button) {
-  border-color: transparent;
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 5px 12px;
-  height: 28px;
-  margin: 0;
-}
-
-.batch-bar :deep(.el-dropdown .el-button) {
-  margin: 0;
-}
-
-.batch-bar :deep(.el-button:hover) {
-  border-color: transparent;
-  background-color: rgba(255, 255, 255, 0.35);
-  color: #ffffff;
-}
-
-.batch-bar :deep(.el-button--danger) {
-  background-color: #ef4444;
-  border-color: transparent;
-  color: #ffffff;
-  margin: 0;
-}
-
-.batch-bar :deep(.el-button--danger:hover) {
-  background-color: #dc2626;
-  border-color: transparent;
-  color: #ffffff;
-}
-
-.table-container {
-  flex: 1;
-  min-height: 0;
-  background-color: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e4e7;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.table-container :deep(.el-table) {
-  flex: 1;
-}
-
-.table-container :deep(.el-table__body-wrapper) {
-  overflow-y: auto;
-}
-
-.table-container :deep(.el-table__cell .cell) {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.table-container :deep(.el-button + .el-button) {
-  margin-left: 0;
+  width: 100px;
 }
 
 .api-name {
-  color: #08060d;
+  color: var(--color-neutral-900);
   cursor: pointer;
   font-weight: 500;
 }
 
 .api-name:hover {
-  color: #aa3bff;
+  color: var(--color-primary-500);
 }
 
 .api-path {
   font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 13px;
-  color: #6b6375;
+  color: var(--color-neutral-500);
 }
 
 .module-name {
   font-size: 13px;
-  color: #606266;
+  color: var(--color-neutral-600);
 }
 
 .tag-list {
@@ -837,31 +682,23 @@ function formatTimeAgo(date: string) {
 
 .api-tag {
   font-size: 11px;
-  background-color: #f4f3ec;
-  color: #6b6375;
+  background-color: var(--color-surface-200);
+  color: var(--color-neutral-600);
   border: none;
 }
 
 .no-tag {
-  color: #C0C4CC;
+  color: var(--color-neutral-400);
 }
 
 .update-time {
   font-size: 13px;
-  color: #909399;
-}
-
-.pagination-container {
-  padding: 16px;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid #e5e4e7;
-  background-color: #fafafa;
+  color: var(--color-neutral-500);
 }
 
 .method-path-row {
   display: flex;
-  gap: 16px;
+  gap: 1rem;
   align-items: flex-start;
 }
 
@@ -887,15 +724,15 @@ function formatTimeAgo(date: string) {
 }
 
 .create-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid #e5e4e7;
-  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-neutral-200);
+  padding-bottom: 1rem;
 }
 
 @media (max-width: 1200px) {
   .search-input {
     width: 200px;
   }
-  
+
   .filter-select {
     width: 80px;
   }
@@ -906,10 +743,9 @@ function formatTimeAgo(date: string) {
     display: none;
   }
 
-  .toolbar {
+  .toolbar-container {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
   }
 
   .toolbar-left, .toolbar-right {
@@ -919,7 +755,7 @@ function formatTimeAgo(date: string) {
   .search-input {
     width: 100%;
   }
-  
+
   .filter-select {
     flex: 1;
     min-width: 80px;

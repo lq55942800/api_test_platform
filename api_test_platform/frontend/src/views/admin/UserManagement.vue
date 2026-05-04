@@ -1,25 +1,40 @@
 <template>
-  <div class="user-management">
-    <div class="page-header">
-      <h2>用户管理</h2>
-      <div class="header-actions">
+  <div class="page-layout">
+    <PageHeader
+      title="用户管理"
+      subtitle="管理系统用户、角色和权限"
+    />
+
+    <ToolBar>
+      <template #left>
+        <el-button type="primary" class="btn-primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          新建用户
+        </el-button>
+      </template>
+
+      <template #right>
         <el-input
           v-model="searchText"
           placeholder="搜索用户名/邮箱/姓名"
           clearable
-          style="width: 240px; margin-right: 12px"
-          @clear="loadUsers"
+          class="search-input"
           @keyup.enter="loadUsers"
         >
-          <template #prefix><el-icon><Search /></el-icon></template>
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
         </el-input>
-        <el-button type="primary" @click="showCreateDialog = true">
-          <el-icon><Plus /></el-icon>新建用户
-        </el-button>
-      </div>
-    </div>
+      </template>
+    </ToolBar>
 
-    <el-table :data="users" v-loading="loading" stripe>
+    <DataTable
+      :loading="loading"
+      :data="users"
+      :total="total"
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+    >
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />
       <el-table-column prop="full_name" label="姓名" width="120" />
@@ -39,10 +54,10 @@
       </el-table-column>
       <el-table-column label="所属团队" min-width="200">
         <template #default="{ row }">
-          <el-tag v-for="t in row.teams" :key="t.team_id" size="small" style="margin-right: 4px">
+          <el-tag v-for="t in row.teams" :key="t.team_id" size="small" class="team-tag">
             {{ t.team_name }}({{ t.role === 'team_leader' ? '负责人' : t.role === 'developer' ? '开发' : '测试' }})
           </el-tag>
-          <span v-if="!row.teams?.length" style="color: #909399">无</span>
+          <span v-if="!row.teams?.length" class="no-team">无</span>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
@@ -52,8 +67,9 @@
           <el-button link type="danger" size="small" @click="handleDelete(row)" :disabled="row.is_superuser">删除</el-button>
         </template>
       </el-table-column>
-    </el-table>
+    </DataTable>
 
+    <!-- 新建用户对话框 -->
     <el-dialog v-model="showCreateDialog" title="新建用户" width="500px" destroy-on-close>
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="90px">
         <el-form-item label="用户名" prop="username">
@@ -78,6 +94,7 @@
       </template>
     </el-dialog>
 
+    <!-- 编辑用户对话框 -->
     <el-dialog v-model="showEditDialog" title="编辑用户" width="500px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" label-width="90px">
         <el-form-item label="邮箱">
@@ -99,6 +116,7 @@
       </template>
     </el-dialog>
 
+    <!-- 重置密码对话框 -->
     <el-dialog v-model="showResetDialog" title="重置密码" width="400px" destroy-on-close>
       <el-form ref="resetFormRef" :model="resetForm" :rules="resetRules" label-width="80px">
         <el-form-item label="新密码" prop="new_password">
@@ -120,6 +138,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { userApi } from '@/api/admin'
 import type { AdminUserResponse } from '@/types/admin'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ToolBar from '@/components/common/ToolBar.vue'
+import DataTable from '@/components/common/DataTable.vue'
 
 const users = ref<AdminUserResponse[]>([])
 const loading = ref(false)
@@ -130,11 +151,16 @@ const showEditDialog = ref(false)
 const showResetDialog = ref(false)
 
 const createFormRef = ref<FormInstance>()
+const editFormRef = ref<FormInstance>()
 const resetFormRef = ref<FormInstance>()
 
 const createForm = reactive({ username: '', email: '', password: '', full_name: '', is_superuser: false })
 const editForm = reactive({ email: '', full_name: '', is_active: true, is_superuser: false })
 const resetForm = reactive({ new_password: '' })
+
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(20)
 
 let editingUserId = 0
 let resettingUserId = 0
@@ -166,6 +192,7 @@ async function loadUsers() {
     const params: any = {}
     if (searchText.value) params.search = searchText.value
     users.value = await userApi.list(params)
+    total.value = users.value.length
   } catch (e: any) {
     ElMessage.error('加载用户列表失败')
   } finally {
@@ -245,27 +272,44 @@ async function handleDelete(user: AdminUserResponse) {
 </script>
 
 <style scoped>
-.user-management {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.page-header {
+.page-layout {
+  padding: 1.25rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  background-color: var(--color-surface-200);
 }
 
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+}
+
+.search-input {
+  width: 240px;
+}
+
+.team-tag {
+  margin-right: 4px;
+}
+
+.no-team {
+  color: var(--color-neutral-400);
+  font-size: 13px;
 }
 </style>

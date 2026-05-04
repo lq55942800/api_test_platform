@@ -1,13 +1,26 @@
 <template>
-  <div class="team-management">
-    <div class="page-header">
-      <h2>团队管理</h2>
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>新建团队
-      </el-button>
-    </div>
+  <div class="page-layout">
+    <PageHeader
+      title="团队管理"
+      subtitle="管理团队信息、成员和权限"
+    />
 
-    <el-table :data="teams" v-loading="loading" stripe>
+    <ToolBar>
+      <template #left>
+        <el-button type="primary" class="btn-primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          新建团队
+        </el-button>
+      </template>
+    </ToolBar>
+
+    <DataTable
+      :loading="loading"
+      :data="teams"
+      :total="total"
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+    >
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="name" label="团队名称" min-width="150" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
@@ -28,8 +41,9 @@
           <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
-    </el-table>
+    </DataTable>
 
+    <!-- 新建团队对话框 -->
     <el-dialog v-model="showCreateDialog" title="新建团队" width="480px" destroy-on-close>
       <el-form ref="createFormRef" :model="createForm" :rules="teamRules" label-width="80px">
         <el-form-item label="团队名称" prop="name">
@@ -45,6 +59,7 @@
       </template>
     </el-dialog>
 
+    <!-- 编辑团队对话框 -->
     <el-dialog v-model="showEditDialog" title="编辑团队" width="480px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" :rules="teamRules" label-width="80px">
         <el-form-item label="团队名称" prop="name">
@@ -63,6 +78,7 @@
       </template>
     </el-dialog>
 
+    <!-- 成员管理对话框 -->
     <el-dialog v-model="showMemberDialog" :title="`成员管理 - ${currentTeam?.name || ''}`" width="700px" destroy-on-close>
       <div class="member-header">
         <el-button type="primary" size="small" @click="showAddMemberDialog = true">
@@ -142,6 +158,9 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { teamApi, userApi } from '@/api/admin'
 import { MEMBER_ROLES } from '@/types/admin'
 import type { TeamResponse, TeamMemberResponse, AdminUserResponse } from '@/types/admin'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ToolBar from '@/components/common/ToolBar.vue'
+import DataTable from '@/components/common/DataTable.vue'
 
 const teams = ref<TeamResponse[]>([])
 const loading = ref(false)
@@ -167,6 +186,10 @@ const teamRules: FormRules = {
   name: [{ required: true, message: '请输入团队名称', trigger: 'blur' }],
 }
 
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(20)
+
 let editingTeamId = 0
 
 onMounted(() => { loadTeams() })
@@ -175,6 +198,7 @@ async function loadTeams() {
   loading.value = true
   try {
     teams.value = await teamApi.list()
+    total.value = teams.value.length
   } catch (e: any) {
     ElMessage.error(e.response?.data?.detail || '加载团队列表失败')
   } finally {
@@ -314,27 +338,36 @@ async function handleRemoveMember(member: TeamMemberResponse) {
 </script>
 
 <style scoped>
-.team-management {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.page-header {
+.page-layout {
+  padding: 1.25rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  background-color: var(--color-surface-200);
 }
 
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
 }
 
 .member-header {
-  margin-bottom: 12px;
+  margin-bottom: 0.75rem;
   display: flex;
   justify-content: flex-end;
 }

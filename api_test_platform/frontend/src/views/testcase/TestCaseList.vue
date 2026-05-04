@@ -1,26 +1,23 @@
 <template>
-  <div class="testcase-list-page">
-    <!-- 页面标题区域 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">测试用例管理</h1>
-        <p class="page-subtitle">管理测试用例，支持创建、编辑、执行和跨团队复制</p>
-      </div>
-    </div>
+  <div class="page-layout">
+    <PageHeader
+      title="测试用例管理"
+      subtitle="管理测试用例，支持创建、编辑、执行和跨团队复制"
+    />
 
-    <!-- 工具栏区域 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <el-button type="primary" class="primary-btn" @click="handleCreate">
+    <ToolBar>
+      <template #left>
+        <el-button type="primary" class="btn-primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
           新建用例
         </el-button>
-        <el-button class="outline-btn" @click="showImportDialog = true">
+        <el-button class="btn-outline" @click="showImportDialog = true">
           <el-icon><Upload /></el-icon>
           批量导入
         </el-button>
-      </div>
-      <div class="toolbar-right">
+      </template>
+
+      <template #right>
         <el-input
           v-model="searchText"
           placeholder="搜索用例名称/描述"
@@ -49,119 +46,105 @@
             :value="module.id"
           />
         </el-select>
-      </div>
-    </div>
+      </template>
+    </ToolBar>
 
-    <!-- 测试用例列表表格 -->
-    <div class="table-container">
-      <el-table
-        :data="testCases"
-        v-loading="loading"
-        stripe
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" align="center" />
-        <el-table-column type="index" label="序号" width="70" align="center" :index="indexMethod" />
-        <el-table-column prop="name" label="用例名称" min-width="200">
-          <template #default="{ row }">
-            <div class="case-name">
-              <el-tag :type="getPriorityType(row.priority)" size="small" class="priority-tag">
-                {{ row.priority }}
-              </el-tag>
-              <span class="name-text" @click="handleView(row)">{{ row.name }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="module_id" label="所属模块" width="150">
-          <template #default="{ row }">
-            <span>{{ getModuleName(row.module_id) || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'enabled' ? 'success' : 'info'" size="small">
-              {{ row.status === 'enabled' ? '启用' : '禁用' }}
+    <DataTable
+      :loading="loading"
+      :data="testCases"
+      :total="total"
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      @selection-change="handleSelectionChange"
+    >
+      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column type="index" label="序号" width="70" align="center" :index="indexMethod" />
+      <el-table-column prop="name" label="用例名称" min-width="200">
+        <template #default="{ row }">
+          <div class="case-name">
+            <el-tag :type="getPriorityType(row.priority)" size="small" class="priority-tag">
+              {{ row.priority }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="tags" label="标签" width="200">
-          <template #default="{ row }">
-            <div class="tags-cell">
-              <el-tag
-                v-for="tag in (row.tags || []).slice(0, 3)"
-                :key="tag"
-                size="small"
-                class="tag-item"
-              >
-                {{ tag }}
-              </el-tag>
-              <span v-if="(row.tags || []).length > 3" class="more-tags">
-                +{{ row.tags.length - 3 }}
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="步骤数" width="100" align="center">
-          <template #default="{ row }">
-            <span>{{ row.steps?.length || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" sortable>
-          <template #default="{ row }">
-            <span>{{ formatDate(row.created_at) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-tooltip content="查看" placement="top">
-                <el-button type="primary" link size="small" @click="handleView(row)">
-                  <el-icon><View /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="编辑" placement="top">
-                <el-button type="primary" link size="small" @click="handleEdit(row)">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="执行" placement="top">
-                <el-button type="success" link size="small" @click="handleExecute(row)">
-                  <el-icon><VideoPlay /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="执行记录" placement="top">
-                <el-button type="info" link size="small" @click="handleShowRecords(row)">
-                  <el-icon><Document /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="复制" placement="top">
-                <el-button type="warning" link size="small" @click="handleCopy(row)">
-                  <el-icon><CopyDocument /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top">
-                <el-button type="danger" link size="small" @click="handleDelete(row)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          background
-        />
-      </div>
-    </div>
+            <span class="name-text" @click="handleView(row)">{{ row.name }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="module_id" label="所属模块" width="150">
+        <template #default="{ row }">
+          <span>{{ getModuleName(row.module_id) || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 'enabled' ? 'success' : 'info'" size="small">
+            {{ row.status === 'enabled' ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="tags" label="标签" width="200">
+        <template #default="{ row }">
+          <div class="tags-cell">
+            <el-tag
+              v-for="tag in (row.tags || []).slice(0, 3)"
+              :key="tag"
+              size="small"
+              class="tag-item"
+            >
+              {{ tag }}
+            </el-tag>
+            <span v-if="(row.tags || []).length > 3" class="more-tags">
+              +{{ row.tags.length - 3 }}
+            </span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="步骤数" width="100" align="center">
+        <template #default="{ row }">
+          <span>{{ row.steps?.length || 0 }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+        <template #default="{ row }">
+          <span class="time-text">{{ formatDate(row.created_at) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <div class="action-buttons">
+            <el-tooltip content="查看" placement="top">
+              <el-button type="primary" link size="small" @click="handleView(row)">
+                <el-icon><View /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="编辑" placement="top">
+              <el-button type="primary" link size="small" @click="handleEdit(row)">
+                <el-icon><Edit /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="执行" placement="top">
+              <el-button type="success" link size="small" @click="handleExecute(row)">
+                <el-icon><VideoPlay /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="执行记录" placement="top">
+              <el-button type="info" link size="small" @click="handleShowRecords(row)">
+                <el-icon><Document /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="复制" placement="top">
+              <el-button type="warning" link size="small" @click="handleCopy(row)">
+                <el-icon><CopyDocument /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="删除" placement="top">
+              <el-button type="danger" link size="small" @click="handleDelete(row)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </el-tooltip>
+          </div>
+        </template>
+      </el-table-column>
+    </DataTable>
 
     <!-- 执行对话框 -->
     <el-dialog
@@ -240,7 +223,7 @@
             </template>
           </el-table-column>
         </el-table>
-        <div class="pagination-container">
+        <div class="pagination-wrapper">
           <el-pagination
             v-model:current-page="recordPagination.page"
             v-model:page-size="recordPagination.pageSize"
@@ -330,7 +313,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Upload, View, Edit, VideoPlay, Document, CopyDocument, Delete } from '@element-plus/icons-vue'
@@ -339,10 +322,12 @@ import type { SSEStepEvent } from '@/api/testcase'
 import { environmentApi } from '@/api/environment'
 import type { TestCase, TestCaseModule, ExecuteRequest, CrossTeamCopyCheck, ExecutionRecord } from '@/types/testcase'
 import type { Environment } from '@/types/environment'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ToolBar from '@/components/common/ToolBar.vue'
+import DataTable from '@/components/common/DataTable.vue'
 
 const router = useRouter()
 
-// 状态
 const loading = ref(false)
 const executing = ref(false)
 const copying = ref(false)
@@ -358,7 +343,6 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-// 执行对话框
 const showExecuteDialog = ref(false)
 const currentTestCase = ref<TestCase | null>(null)
 const executeForm = ref<ExecuteRequest>({
@@ -369,16 +353,13 @@ const executeForm = ref<ExecuteRequest>({
   step_interval: 0
 })
 
-// 跨团队复制对话框
 const showCopyDialog = ref(false)
 const copyCheckResult = ref<CrossTeamCopyCheck | null>(null)
 const copyTestCaseId = ref<number>(0)
 const copyTargetTeamId = ref<number>(0)
 
-// 导入对话框
 const showImportDialog = ref(false)
 
-// 执行记录对话框
 const showRecordsDialog = ref(false)
 const loadingRecords = ref(false)
 const executionRecords = ref<ExecutionRecord[]>([])
@@ -389,12 +370,10 @@ const recordPagination = ref({
   total: 0
 })
 
-// 序号方法
 function indexMethod(index: number) {
   return (currentPage.value - 1) * pageSize.value + index + 1
 }
 
-// 获取优先级标签类型
 function getPriorityType(priority: string) {
   const typeMap: Record<string, any> = {
     P0: 'danger',
@@ -405,19 +384,16 @@ function getPriorityType(priority: string) {
   return typeMap[priority] || ''
 }
 
-// 获取模块名称
 function getModuleName(moduleId: number | null) {
   if (!moduleId) return ''
   const module = modules.value.find(m => m.id === moduleId)
   return module?.name || ''
 }
 
-// 格式化日期
 function formatDate(date: string) {
   return new Date(date).toLocaleString('zh-CN')
 }
 
-// 初始化
 onMounted(async () => {
   await Promise.all([
     fetchTestCases(),
@@ -426,12 +402,10 @@ onMounted(async () => {
   ])
 })
 
-// 监听分页变化
 watch([currentPage, pageSize], () => {
   fetchTestCases()
 })
 
-// 监听搜索和筛选变化
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch([searchText, filterStatus, filterPriority, filterModuleId], () => {
   currentPage.value = 1
@@ -441,7 +415,6 @@ watch([searchText, filterStatus, filterPriority, filterModuleId], () => {
   }, 300)
 })
 
-// 获取测试用例列表
 async function fetchTestCases() {
   loading.value = true
   try {
@@ -466,7 +439,6 @@ async function fetchTestCases() {
   }
 }
 
-// 获取模块列表
 async function fetchModules() {
   try {
     modules.value = await testCaseModuleApi.list()
@@ -475,7 +447,6 @@ async function fetchModules() {
   }
 }
 
-// 获取环境列表
 async function fetchEnvironments() {
   try {
     const result = await environmentApi.list({ page_size: 100 })
@@ -485,27 +456,22 @@ async function fetchEnvironments() {
   }
 }
 
-// 选择变化
 function handleSelectionChange(selection: TestCase[]) {
   selectedCases.value = selection
 }
 
-// 新建用例
 function handleCreate() {
   router.push('/testcase/create')
 }
 
-// 查看用例
 function handleView(row: TestCase) {
   router.push(`/testcase/${row.id}`)
 }
 
-// 编辑用例
 function handleEdit(row: TestCase) {
   router.push(`/testcase/${row.id}/edit`)
 }
 
-// 执行用例
 function handleExecute(row: TestCase) {
   currentTestCase.value = row
   if (!executeForm.value.environment_id && environments.value.length > 0) {
@@ -547,10 +513,8 @@ async function confirmExecute() {
   )
 }
 
-// 复制用例
 async function handleCopy(row: TestCase) {
   try {
-    // 先进行跨团队复制检查
     copyTestCaseId.value = row.id
     copyCheckResult.value = await testCaseApi.checkCopy(row.id, copyTargetTeamId.value)
     showCopyDialog.value = true
@@ -559,7 +523,6 @@ async function handleCopy(row: TestCase) {
   }
 }
 
-// 确认复制
 async function confirmCopy() {
   copying.value = true
   try {
@@ -574,7 +537,6 @@ async function confirmCopy() {
   }
 }
 
-// 删除用例
 async function handleDelete(row: TestCase) {
   try {
     await ElMessageBox.confirm(
@@ -592,7 +554,6 @@ async function handleDelete(row: TestCase) {
   }
 }
 
-// 显示执行记录
 async function handleShowRecords(row: TestCase) {
   currentRecordTestCase.value = row
   recordPagination.value.page = 1
@@ -601,10 +562,9 @@ async function handleShowRecords(row: TestCase) {
   await loadExecutionRecords()
 }
 
-// 加载执行记录
 async function loadExecutionRecords() {
   if (!currentRecordTestCase.value) return
-  
+
   loadingRecords.value = true
   try {
     const result = await executionApi.list(currentRecordTestCase.value.id, {
@@ -621,28 +581,116 @@ async function loadExecutionRecords() {
   }
 }
 
-// 分页变化
 function handleRecordPageChange() {
   loadExecutionRecords()
 }
 
-// 查看执行记录详情
 function viewRecordDetail(record: ExecutionRecord) {
   router.push(`/execution/${record.id}`)
 }
 </script>
 
 <style scoped>
-.testcase-list-page {
-  padding: 24px;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+.page-layout {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  background-color: var(--color-surface-200);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-neutral-600);
+  background-color: transparent;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-outline:hover {
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-500);
+}
+
+.search-input {
+  width: 300px;
+}
+
+.filter-select {
+  width: 100px;
+}
+
+.case-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.priority-tag {
+  flex-shrink: 0;
+}
+
+.name-text {
+  font-weight: 500;
+  color: var(--color-neutral-900);
+  cursor: pointer;
+}
+
+.name-text:hover {
+  color: var(--color-primary-500);
+}
+
+.tags-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tag-item {
+  margin: 0;
+}
+
+.more-tags {
+  color: var(--color-neutral-500);
+  font-size: 12px;
+}
+
+.time-text {
+  font-size: 13px;
+  color: var(--color-neutral-500);
 }
 
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: nowrap;
   white-space: nowrap;
 }
@@ -656,134 +704,14 @@ function viewRecordDetail(record: ExecutionRecord) {
   margin-left: 0;
 }
 
-/* 页面标题区域 */
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
-  padding: 24px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #08060d;
-  margin: 0 0 8px 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #6b6375;
-  margin: 0;
-}
-
-/* 工具栏区域 */
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding: 16px 24px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.primary-btn {
-  background-color: #6145ff;
-  border-color: #6145ff;
-}
-
-.primary-btn:hover {
-  background-color: #5035e0;
-  border-color: #5035e0;
-}
-
-.outline-btn {
-  border-color: #6145ff;
-  color: #6145ff;
-}
-
-.outline-btn:hover {
-  background-color: #f0ebff;
-}
-
-.search-input {
-  width: 300px;
-}
-
-.filter-select {
-  width: 120px;
-}
-
-/* 表格容器 */
-.table-container {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-/* 分页容器 */
-.pagination-container {
-  padding: 16px;
+.pagination-wrapper {
+  padding: 1rem;
   display: flex;
   justify-content: flex-end;
-  background-color: #ffffff;
-  border-top: 1px solid #e5e4e7;
+  border-top: 1px solid var(--color-neutral-200);
+  background-color: var(--color-surface-100);
 }
 
-/* 用例名称样式 */
-.case-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.priority-tag {
-  flex-shrink: 0;
-}
-
-.name-text {
-  font-weight: 500;
-  color: #08060d;
-  cursor: pointer;
-}
-
-.name-text:hover {
-  color: #6145ff;
-}
-
-/* 标签单元格 */
-.tags-cell {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-
-.tag-item {
-  margin: 0;
-}
-
-.more-tags {
-  color: #6b6375;
-  font-size: 12px;
-}
-
-/* 跨团队复制检查结果 */
 .copy-check-result {
   max-height: 500px;
   overflow-y: auto;
@@ -792,49 +720,53 @@ function viewRecordDetail(record: ExecutionRecord) {
 .warnings-section,
 .services-section,
 .variables-section {
-  margin-top: 20px;
+  margin-top: 1.25rem;
 }
 
 .warnings-section h4,
 .services-section h4,
 .variables-section h4 {
-  margin-bottom: 12px;
-  font-size: 16px;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #08060d;
+  color: var(--color-neutral-900);
 }
 
-.warnings-section .el-alert {
-  margin-bottom: 8px;
+.warnings-section :deep(.el-alert) {
+  margin-bottom: 0.5rem;
 }
 
 .variable-tag {
-  margin-right: 8px;
-  margin-bottom: 8px;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
-/* 响应式设计 */
+.empty-records {
+  padding: 2rem;
+  text-align: center;
+}
+
 @media (max-width: 1200px) {
-  .toolbar {
+  .search-input {
+    width: 200px;
+  }
+
+  .filter-select {
+    width: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-layout {
+    padding: 1rem;
+  }
+
+  .toolbar-container {
     flex-direction: column;
     align-items: stretch;
   }
 
   .toolbar-left,
-  .toolbar-right {
-    width: 100%;
-  }
-
-  .search-input {
-    flex: 1;
-  }
-}
-
-@media (max-width: 768px) {
-  .testcase-list-page {
-    padding: 16px;
-  }
-
   .toolbar-right {
     flex-wrap: wrap;
   }

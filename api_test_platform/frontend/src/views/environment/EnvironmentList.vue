@@ -1,100 +1,87 @@
 <template>
-  <div class="environment-list">
-    <!-- 页面标题区域 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">环境管理</h1>
-        <p class="page-subtitle">管理测试环境的配置信息，包括服务器、数据库和变量</p>
-      </div>
-    </div>
+  <div class="page-layout">
+    <PageHeader
+      title="环境管理"
+      subtitle="管理测试环境的配置信息，包括服务器、数据库和变量"
+    />
 
-    <!-- 工具栏区域 -->
-    <div class="toolbar">
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>
-        新建环境
-      </el-button>
-      <el-input
-        v-model="searchText"
-        placeholder="搜索环境名称/描述"
-        clearable
-        class="search-input"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
+    <ToolBar>
+      <template #left>
+        <el-button type="primary" class="btn-primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          新建环境
+        </el-button>
+      </template>
+
+      <template #right>
+        <el-input
+          v-model="searchText"
+          placeholder="搜索环境名称/描述"
+          clearable
+          class="search-input"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </template>
+    </ToolBar>
+
+    <DataTable
+      :loading="loading"
+      :data="environments"
+      :total="total"
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+    >
+      <el-table-column type="index" label="序号" width="70" align="center" :index="indexMethod" />
+      <el-table-column prop="name" label="环境名称" sortable min-width="200">
+        <template #default="{ row }">
+          <div class="env-name">
+            <el-tag v-if="row.is_default" type="success" size="small" class="default-tag">默认</el-tag>
+            <span class="name-text">{{ row.name }}</span>
+          </div>
         </template>
-      </el-input>
-    </div>
-
-    <!-- 环境列表表格 -->
-    <div class="table-container">
-      <el-table
-        :data="environments"
-        v-loading="loading"
-        stripe
-        style="width: 100%"
-      >
-        <el-table-column type="index" label="序号" width="70" align="center" :index="indexMethod" />
-        <el-table-column prop="name" label="环境名称" sortable min-width="200">
-          <template #default="{ row }">
-            <div class="env-name">
-              <el-tag v-if="row.is_default" type="success" size="small" class="default-tag">默认</el-tag>
-              <span class="name-text">{{ row.name }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="300">
-          <template #default="{ row }">
-            <span class="description-text">{{ row.description || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="服务数" width="100" align="center">
-          <template #default="{ row }">
-            <span>{{ row.services?.length || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" sortable>
-          <template #default="{ row }">
-            <span>{{ formatDate(row.created_at) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="handleView(row)">查看</el-button>
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="primary" link @click="handleCopy(row)">复制</el-button>
-            <el-button
-              v-if="!row.is_default"
-              type="primary"
-              link
-              @click="handleSetDefault(row)"
-            >
-              设为默认
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              @click="handleDelete(row)"
-              :disabled="environments.length <= 1"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          background
-        />
-      </div>
-    </div>
+      </el-table-column>
+      <el-table-column prop="description" label="描述" min-width="300">
+        <template #default="{ row }">
+          <span class="description-text">{{ row.description || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="服务数" width="100" align="center">
+        <template #default="{ row }">
+          <span>{{ row.services?.length || 0 }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+        <template #default="{ row }">
+          <span class="time-text">{{ formatDate(row.created_at) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="280" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link @click="handleView(row)">查看</el-button>
+          <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+          <el-button type="primary" link @click="handleCopy(row)">复制</el-button>
+          <el-button
+            v-if="!row.is_default"
+            type="primary"
+            link
+            @click="handleSetDefault(row)"
+          >
+            设为默认
+          </el-button>
+          <el-button
+            type="danger"
+            link
+            @click="handleDelete(row)"
+            :disabled="environments.length <= 1"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </DataTable>
 
     <!-- 新建环境对话框 -->
     <el-dialog
@@ -182,26 +169,25 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { useEnvironmentStore } from '@/stores/environment'
 import type { Environment } from '@/types/environment'
 import type { FormInstance, FormRules } from 'element-plus'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ToolBar from '@/components/common/ToolBar.vue'
+import DataTable from '@/components/common/DataTable.vue'
 
 const router = useRouter()
 const store = useEnvironmentStore()
 
-// 状态
 const searchText = ref('')
 const loading = ref(false)
 const submitting = ref(false)
 const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 
-// 表单引用
 const createFormRef = ref<FormInstance>()
 const editFormRef = ref<FormInstance>()
 
-// 表单数据
 const createForm = ref({ name: '', description: '' })
 const editForm = ref({ id: 0, name: '', description: '' })
 
-// 表单验证规则
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入环境名称', trigger: 'blur' },
@@ -209,30 +195,24 @@ const formRules: FormRules = {
   ]
 }
 
-// 分页
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-// 环境列表
 const environments = computed(() => store.environments)
 const total = computed(() => store.total)
 
-// 序号方法
 function indexMethod(index: number) {
   return (currentPage.value - 1) * pageSize.value + index + 1
 }
 
-// 初始化
 onMounted(async () => {
   await fetchEnvironments()
 })
 
-// 监听分页变化
 watch([currentPage, pageSize], () => {
   fetchEnvironments()
 })
 
-// 监听搜索变化（防抖）
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(searchText, (newVal) => {
   if (searchTimer) clearTimeout(searchTimer)
@@ -242,7 +222,6 @@ watch(searchText, (newVal) => {
   }, 300)
 })
 
-// 获取环境列表
 async function fetchEnvironments() {
   loading.value = true
   try {
@@ -256,17 +235,14 @@ async function fetchEnvironments() {
   }
 }
 
-// 格式化日期
 function formatDate(date: string) {
   return new Date(date).toLocaleString('zh-CN')
 }
 
-// 查看环境详情
 function handleView(row: Environment) {
   router.push(`/environments/${row.id}`)
 }
 
-// 编辑环境
 function handleEdit(row: Environment) {
   editForm.value = {
     id: row.id,
@@ -276,7 +252,6 @@ function handleEdit(row: Environment) {
   showEditDialog.value = true
 }
 
-// 创建环境
 async function handleCreate() {
   const valid = await createFormRef.value?.validate()
   if (!valid) return
@@ -288,14 +263,11 @@ async function handleCreate() {
     showCreateDialog.value = false
     createForm.value = { name: '', description: '' }
     await fetchEnvironments()
-  } catch (error: any) {
-    // 错误已在拦截器中处理
   } finally {
     submitting.value = false
   }
 }
 
-// 更新环境
 async function handleUpdate() {
   const valid = await editFormRef.value?.validate()
   if (!valid) return
@@ -309,14 +281,11 @@ async function handleUpdate() {
     ElMessage.success('更新成功')
     showEditDialog.value = false
     await fetchEnvironments()
-  } catch (error: any) {
-    // 错误已在拦截器中处理
   } finally {
     submitting.value = false
   }
 }
 
-// 复制环境
 async function handleCopy(row: Environment) {
   try {
     await ElMessageBox.confirm(`确定要复制环境"${row.name}"吗？`, '提示', {
@@ -327,12 +296,11 @@ async function handleCopy(row: Environment) {
     await fetchEnvironments()
   } catch (error: any) {
     if (error !== 'cancel') {
-      // 错误已在拦截器中处理
+      // error handled by interceptor
     }
   }
 }
 
-// 设置默认环境
 async function handleSetDefault(row: Environment) {
   try {
     await ElMessageBox.confirm(`确定要将"${row.name}"设为默认环境吗？`, '提示', {
@@ -343,12 +311,11 @@ async function handleSetDefault(row: Environment) {
     await fetchEnvironments()
   } catch (error: any) {
     if (error !== 'cancel') {
-      // 错误已在拦截器中处理
+      // error handled by interceptor
     }
   }
 }
 
-// 删除环境
 async function handleDelete(row: Environment) {
   try {
     await ElMessageBox.confirm(
@@ -361,82 +328,49 @@ async function handleDelete(row: Environment) {
     await fetchEnvironments()
   } catch (error: any) {
     if (error !== 'cancel') {
-      // 错误已在拦截器中处理
+      // error handled by interceptor
     }
   }
 }
 </script>
 
 <style scoped>
-.environment-list {
-  padding: 24px;
-  background-color: #ffffff;
-  min-height: 100vh;
-}
-
-/* 页面标题区域 */
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
-  padding: 24px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #08060d;
-  margin: 0 0 8px 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #6b6375;
-  margin: 0;
-}
-
-/* 工具栏区域 */
-.toolbar {
+.page-layout {
+  padding: 1.25rem;
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  background-color: var(--color-surface-200);
+}
+
+.btn-primary {
+  display: inline-flex;
   align-items: center;
-  padding: 16px 24px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+  border-radius: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
 }
 
 .search-input {
-  width: 400px;
+  width: 300px;
 }
 
-/* 表格容器 */
-.table-container {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-/* 分页容器 */
-.pagination-container {
-  padding: 16px;
-  display: flex;
-  justify-content: flex-end;
-  background-color: #ffffff;
-  border-top: 1px solid #e5e4e7;
-}
-
-/* 环境名称样式 */
 .env-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .default-tag {
@@ -445,19 +379,30 @@ async function handleDelete(row: Environment) {
 
 .name-text {
   font-weight: 500;
-  color: #08060d;
+  color: var(--color-neutral-900);
 }
 
-/* 描述文本样式 */
 .description-text {
-  color: #6b6375;
+  color: var(--color-neutral-500);
 }
 
-/* 响应式设计 */
+.time-text {
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
 @media (max-width: 768px) {
-  .toolbar {
+  .page-layout {
+    padding: 1rem;
+  }
+
+  .toolbar-container {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toolbar-right {
+    width: 100%;
   }
 
   .search-input {
