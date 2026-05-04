@@ -4,7 +4,12 @@
       <ModuleTree @select="handleModuleSelect" />
       <div class="left-section" v-if="recentVisits.length > 0">
         <div class="section-header">
-          <span class="section-icon">🕐</span>
+          <span class="section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12,6 12,12 16,14"/>
+            </svg>
+          </span>
           <span class="section-title">最近</span>
         </div>
         <div class="section-content">
@@ -65,9 +70,6 @@
           </el-select>
           <el-select v-model="filterStatus" placeholder="状态" clearable class="filter-select">
             <el-option v-for="s in API_STATUSES" :key="s.value" :label="s.label" :value="s.value" />
-          </el-select>
-          <el-select v-model="filterTagId" placeholder="标签" clearable class="filter-select">
-            <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </template>
 
@@ -139,32 +141,34 @@
             <span class="update-time">{{ formatDate(row.updated_at) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right" align="center">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleDebug(row)">
-              <el-icon><VideoPlay /></el-icon>调试
-            </el-button>
-            <el-button type="primary" link size="small" @click="handleGoDetail(row)">
-              <el-icon><Edit /></el-icon>编辑
-            </el-button>
-            <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
-              <el-button type="primary" link size="small">
-                <el-icon><More /></el-icon>
+            <div class="action-buttons">
+              <el-button type="primary" link size="small" @click="handleDebug(row)">
+                <el-icon><VideoPlay /></el-icon>调试
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="copy">
-                    <el-icon><CopyDocument /></el-icon>复制
-                  </el-dropdown-item>
-                  <el-dropdown-item command="history">
-                    <el-icon><Clock /></el-icon>版本历史
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <el-icon color="#F56C6C"><Delete /></el-icon><span style="color:#F56C6C">删除</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+              <el-button type="primary" link size="small" @click="handleGoDetail(row)">
+                <el-icon><Edit /></el-icon>编辑
+              </el-button>
+              <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
+                <el-button type="primary" link size="small">
+                  <el-icon><More /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="copy">
+                      <el-icon><CopyDocument /></el-icon>复制
+                    </el-dropdown-item>
+                    <el-dropdown-item command="history">
+                      <el-icon><Clock /></el-icon>版本历史
+                    </el-dropdown-item>
+                    <el-dropdown-item command="delete" divided>
+                      <el-icon color="#F56C6C"><Delete /></el-icon><span style="color:#F56C6C">删除</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </DataTable>
@@ -534,7 +538,7 @@ function formatTimeAgo(date: string) {
 .left-panel {
   width: 220px;
   min-width: 220px;
-  background-color: #fff;
+  background-color: var(--color-surface-200);
   border-right: 1px solid var(--color-neutral-200);
   display: flex;
   flex-direction: column;
@@ -694,6 +698,20 @@ function formatTimeAgo(date: string) {
 .update-time {
   font-size: 13px;
   color: var(--color-neutral-500);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-buttons :deep(.el-button) {
+  margin: 0;
+}
+
+.action-buttons :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .method-path-row {
