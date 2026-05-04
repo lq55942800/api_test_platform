@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    LOGIN_MAX_FAIL_COUNT: int = 5
+    LOGIN_LOCK_MINUTES: int = 30
     
     # CORS配置
     CORS_ORIGINS: list = ["*"]

@@ -12,6 +12,9 @@ from app.api.api_management import router as api_management_router
 from app.api.execution import router as execution_router
 from app.api.test_case import router as test_case_router
 from app.api.test_case_module import router as test_case_module_router
+from app.api.auth import router as auth_router
+from app.api.admin_team import router as admin_team_router
+from app.api.admin_user import router as admin_user_router
 from app.db.session import engine
 from app.db.base import Base
 
@@ -43,6 +46,9 @@ app.include_router(api_management_router, prefix="/api/v1")
 app.include_router(execution_router, prefix="/api/v1")
 app.include_router(test_case_router, prefix="/api/v1")
 app.include_router(test_case_module_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(admin_team_router, prefix="/api/v1")
+app.include_router(admin_user_router, prefix="/api/v1")
 
 
 @app.get("/")

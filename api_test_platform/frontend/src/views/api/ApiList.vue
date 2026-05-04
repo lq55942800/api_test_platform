@@ -550,7 +550,8 @@ function formatTimeAgo(date: string) {
 <style scoped>
 .api-list-page {
   display: flex;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background-color: #f5f5f7;
 }

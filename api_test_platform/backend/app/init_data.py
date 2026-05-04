@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.models.base_models import Team, User
+from app.models.base_models import Team, User, TeamMember
 from passlib.context import CryptContext
 import logging
 
@@ -60,6 +60,21 @@ def init_base_data(db: Session):
         logger.info("Created default user (ID=1, username=admin, password=admin123)")
     else:
         logger.info("Default user already exists (ID=1)")
+    
+    # 创建默认团队成员关系
+    default_membership = db.query(TeamMember).filter(
+        TeamMember.team_id == 1,
+        TeamMember.user_id == 1
+    ).first()
+    if not default_membership:
+        default_membership = TeamMember(
+            team_id=1,
+            user_id=1,
+            role="team_leader",
+            status="active"
+        )
+        db.add(default_membership)
+        logger.info("Created default team membership (admin as team_leader)")
     
     # 提交更改
     db.commit()

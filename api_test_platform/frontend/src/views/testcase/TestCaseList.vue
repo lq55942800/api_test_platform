@@ -334,7 +334,8 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Upload, View, Edit, VideoPlay, Document, CopyDocument, Delete } from '@element-plus/icons-vue'
-import { testCaseApi, testCaseModuleApi, executionApi } from '@/api/testcase'
+import { testCaseApi, testCaseModuleApi, executionApi, executeSSE } from '@/api/testcase'
+import type { SSEStepEvent } from '@/api/testcase'
 import { environmentApi } from '@/api/environment'
 import type { TestCase, TestCaseModule, ExecuteRequest, CrossTeamCopyCheck, ExecutionRecord } from '@/types/testcase'
 import type { Environment } from '@/types/environment'
@@ -514,7 +515,6 @@ function handleExecute(row: TestCase) {
   showExecuteDialog.value = true
 }
 
-// 确认执行
 async function confirmExecute() {
   if (!currentTestCase.value) return
 
@@ -524,21 +524,27 @@ async function confirmExecute() {
   }
 
   executing.value = true
-  try {
-    const result = await testCaseApi.execute(currentTestCase.value.id, executeForm.value)
-    showExecuteDialog.value = false
-    if (result.status === 'passed') {
-      ElMessage.success('执行通过')
-    } else if (result.status === 'failed') {
-      ElMessage.warning(`执行未通过：通过 ${result.passed_steps}/${result.total_steps} 步`)
-    } else {
-      ElMessage.info(`执行状态: ${result.status}`)
-    }
-  } catch (error) {
-    console.error('执行失败:', error)
-  } finally {
-    executing.value = false
-  }
+  showExecuteDialog.value = false
+  executeSSE(
+    currentTestCase.value.id,
+    executeForm.value,
+    (event: SSEStepEvent) => {
+      if (event.type === 'started') {
+        ElMessage.info('执行已启动')
+      } else if (event.type === 'completed') {
+        if (event.status === 'passed') {
+          ElMessage.success('执行通过')
+        } else {
+          ElMessage.warning(`执行未通过：通过 ${event.passed_steps}/${event.total_steps} 步`)
+        }
+        fetchTestCases()
+      } else if (event.type === 'error') {
+        ElMessage.error(event.message || '执行失败')
+      }
+    },
+    () => { executing.value = false },
+    () => { executing.value = false }
+  )
 }
 
 // 复制用例
