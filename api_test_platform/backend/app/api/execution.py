@@ -15,6 +15,7 @@ from app.schemas.execution import (
     ExecutionExportRequest,
 )
 from app.services.execution_service import ExecutionService
+from app.models.execution_record import TestCaseExecutionRecord, StepExecutionRecord
 
 # 配置日志
 logger = get_logger(__name__)
@@ -218,6 +219,127 @@ def stop_execution(
     except Exception as e:
         logger.error(f"停止执行失败: execution_id={execution_id}, error={str(e)}")
         raise HTTPException(status_code=500, detail=f"停止执行失败: {str(e)}")
+
+
+@router.post("/executions/{execution_id}/steps/{step_id}/retry")
+async def retry_step(
+    execution_id: int,
+    step_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    重试单个步骤
+
+    - **execution_id**: 执行记录ID
+    - **step_id**: 步骤执行记录ID
+    """
+    try:
+        service = ExecutionService(db)
+        
+        step_record = db.query(StepExecutionRecord).filter(
+            StepExecutionRecord.id == step_id,
+            StepExecutionRecord.case_execution_id == execution_id
+        ).first()
+        
+        if not step_record:
+            raise HTTPException(status_code=404, detail="步骤执行记录不存在")
+        
+        if not step_record.api_id:
+            raise HTTPException(status_code=400, detail="该步骤没有关联API，无法重试")
+        
+        execution = db.query(TestCaseExecutionRecord).filter(
+            TestCaseExecutionRecord.id == execution_id
+        ).first()
+        
+        if not execution:
+            raise HTTPException(status_code=404, detail="执行记录不存在")
+        
+        from app.services.debug_engine import DebugEngine
+        
+        debug_engine = DebugEngine(db)
+        debug_result = await debug_engine.execute(
+            api_id=step_record.api_id,
+            environment_id=execution.environment_id,
+        )
+        
+        new_status = "passed"
+        error_message = None
+        
+        if debug_result.get("error_message"):
+            new_status = "error"
+            error_message = debug_result["error_message"]
+        elif debug_result.get("assertion_summary"):
+            if not debug_result["assertion_summary"].get("all_passed", True):
+                new_status = "failed"
+                failed_assertions = [
+                    a for a in (debug_result.get("assertion_results") or [])
+                    if not a.get("passed", True)
+                ]
+                if failed_assertions:
+                    error_message = "; ".join(
+                        a.get("message", "Assertion failed") for a in failed_assertions[:3]
+                    )
+        
+        step_record.status = new_status
+        step_record.error_message = error_message
+        step_record.response_status = debug_result.get("status_code")
+        step_record.response_time = debug_result.get("elapsed_ms")
+        step_record.request_url = debug_result.get("request_url")
+        
+        if debug_result.get("headers"):
+            import json
+            step_record.response_headers = json.dumps(debug_result["headers"], ensure_ascii=False)
+        if debug_result.get("body"):
+            step_record.response_body = debug_result["body"][:50000] if debug_result["body"] else None
+        if debug_result.get("request_headers"):
+            import json
+            step_record.request_headers = json.dumps(debug_result["request_headers"], ensure_ascii=False)
+        if debug_result.get("request_body"):
+            step_record.request_body = debug_result["request_body"][:50000] if debug_result["request_body"] else None
+        
+        from datetime import datetime
+        step_record.end_time = datetime.utcnow()
+        if step_record.start_time:
+            step_record.duration = int((step_record.end_time - step_record.start_time).total_seconds() * 1000)
+        
+        db.commit()
+        db.refresh(step_record)
+        
+        all_steps = db.query(StepExecutionRecord).filter(
+            StepExecutionRecord.case_execution_id == execution_id
+        ).all()
+        
+        total = len(all_steps)
+        passed = sum(1 for s in all_steps if s.status == "passed")
+        failed = sum(1 for s in all_steps if s.status in ("failed", "error"))
+        skipped = sum(1 for s in all_steps if s.status == "skipped")
+        
+        execution.passed_steps = passed
+        execution.failed_steps = failed
+        execution.skipped_steps = skipped
+        
+        if failed > 0:
+            execution.status = "failed"
+        else:
+            execution.status = "passed"
+        
+        db.commit()
+        db.refresh(execution)
+        
+        logger.info(f"步骤重试完成: step_id={step_id}, new_status={new_status}")
+        
+        return {
+            "success": True,
+            "step_id": step_id,
+            "new_status": new_status,
+            "error_message": error_message
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"步骤重试失败: execution_id={execution_id}, step_id={step_id}, error={str(e)}")
+        raise HTTPException(status_code=500, detail=f"步骤重试失败: {str(e)}")
 
 
 @router.post("/executions/{execution_id}/retry")

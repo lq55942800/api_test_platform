@@ -2,36 +2,12 @@
   <div class="page-container">
     <div class="left-panel">
       <ModuleTree @select="handleModuleSelect" />
-      <div class="left-section" v-if="recentVisits.length > 0">
-        <div class="section-header">
-          <span class="section-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12,6 12,12 16,14"/>
-            </svg>
-          </span>
-          <span class="section-title">最近</span>
-        </div>
-        <div class="section-content">
-          <div
-            v-for="item in recentVisits"
-            :key="item.id"
-            class="fav-item"
-            @click="handleGoDetail(item)"
-          >
-            <MethodTag :method="item.method" />
-            <span class="item-name">{{ item.name }}</span>
-            <span class="item-time">{{ formatTimeAgo(item.visited_at) }}</span>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class="right-panel">
-      <PageHeader
-        title="接口管理"
-        subtitle="管理API接口资产，支持录入、导入、调试和版本管理"
-      />
+      <div class="page-header">
+        <h1 class="page-title">接口管理</h1>
+      </div>
 
       <ToolBar
         :show-batch-bar="selectedApis.length > 0"
@@ -173,10 +149,11 @@
         </el-table-column>
       </DataTable>
     </div>
+  </div>
 
-    <DebugPanel :api-data="debugApi" />
+  <DebugPanel :api-data="debugApi" />
 
-    <ImportDialog v-model="showImportDialog" @success="fetchApis" />
+  <ImportDialog v-model="showImportDialog" @success="fetchApis" />
 
     <el-dialog
       v-model="showCreateDialog"
@@ -243,7 +220,6 @@
     </el-dialog>
 
     <VersionPanel v-model="showVersionPanel" :api-id="versionApiId" />
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -529,8 +505,10 @@ function formatTimeAgo(date: string) {
 <style scoped>
 .page-container {
   display: flex;
+  flex-direction: row;
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   background-color: var(--color-surface-200);
 }
@@ -538,16 +516,40 @@ function formatTimeAgo(date: string) {
 .left-panel {
   width: 220px;
   min-width: 220px;
-  background-color: var(--color-surface-200);
+  height: 100%;
+  background-color: var(--color-surface-50);
   border-right: 1px solid var(--color-neutral-200);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
-.left-section {
-  border-top: 1px solid var(--color-neutral-200);
+.right-panel {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background-color: var(--color-surface-200);
+  padding: 0 16px 16px 16px;
+  gap: 2px;
+}
+
+.page-header {
+  padding: 12px 16px;
+  background-color: var(--color-surface-50);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .section-header {
@@ -599,16 +601,6 @@ function formatTimeAgo(date: string) {
   font-size: 11px;
   color: var(--color-neutral-400);
   flex-shrink: 0;
-}
-
-.right-panel {
-  flex: 1;
-  min-width: 0;
-  padding: 1.25rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
 }
 
 .btn-primary {

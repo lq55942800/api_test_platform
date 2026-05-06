@@ -175,6 +175,10 @@ export const executionApi = {
     return client.post(`/executions/${executionId}/retry`)
   },
 
+  async retryStep(executionId: number, stepId: number): Promise<any> {
+    return client.post(`/executions/${executionId}/steps/${stepId}/retry`)
+  },
+
   async exportReport(executionId: number, format: string): Promise<Blob> {
     return client.get(`/executions/${executionId}/export`, { params: { format }, responseType: 'blob' })
   },

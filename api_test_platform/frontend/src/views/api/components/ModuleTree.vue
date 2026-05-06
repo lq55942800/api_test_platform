@@ -1,30 +1,37 @@
 <template>
   <div class="module-tree">
     <div class="tree-header">
-      <span class="tree-title">模块</span>
-      <el-button type="primary" link size="small" @click="handleAddRoot">
+      <span class="tree-title">模块导航</span>
+      <el-button type="primary" link size="small" @click="handleAddRoot" class="add-btn">
         <el-icon><Plus /></el-icon>
+        <span>新建</span>
       </el-button>
     </div>
-    <el-tree
-      ref="treeRef"
-      :data="treeData"
-      :props="treeProps"
-      node-key="id"
-      highlight-current
-      :expand-on-click-node="false"
-      :default-expanded-keys="expandedKeys"
-      :current-node-key="currentNodeKey"
-      @node-click="handleNodeClick"
-      @node-contextmenu="handleContextMenu"
-    >
-      <template #default="{ node, data }">
-        <div class="tree-node">
-          <span class="node-label">{{ data.name }}</span>
-          <span class="node-count" v-if="data.api_count !== undefined">{{ data.api_count }}</span>
-        </div>
-      </template>
-    </el-tree>
+    <div class="tree-body">
+      <el-tree
+        ref="treeRef"
+        :data="treeData"
+        :props="treeProps"
+        node-key="id"
+        highlight-current
+        :expand-on-click-node="false"
+        :default-expanded-keys="expandedKeys"
+        :current-node-key="currentNodeKey"
+        @node-click="handleNodeClick"
+        @node-contextmenu="handleContextMenu"
+      >
+        <template #default="{ node, data }">
+          <div class="tree-node" :class="{ 'is-all': data.id === 0 }">
+            <div class="node-left">
+              <el-icon v-if="data.id === 0" class="node-icon"><Grid /></el-icon>
+              <el-icon v-else class="node-icon"><Folder /></el-icon>
+              <span class="node-label">{{ data.name }}</span>
+            </div>
+            <span class="node-count" v-if="data.api_count !== undefined">{{ data.api_count }}</span>
+          </div>
+        </template>
+      </el-tree>
+    </div>
 
     <el-dialog
       v-model="showModuleDialog"
@@ -49,9 +56,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Grid, Folder } from '@element-plus/icons-vue'
 import { useModuleStore } from '@/stores/api'
 import type { ApiModule, ApiModuleCreate } from '@/types/api'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -87,18 +94,12 @@ const treeProps = {
 }
 
 const treeData = computed(() => {
-  const totalApiCount = moduleStore.modules.length > 0 
+  const totalApiCount = moduleStore.modules.length > 0
     ? (moduleStore.modules[0].total_api_count || 0)
     : 0
-  const allNode = { id: 0, name: '全部', children: moduleStore.modules, api_count: totalApiCount }
+  const allNode = { id: 0, name: '全部接口', children: moduleStore.modules, api_count: totalApiCount }
   return [allNode]
 })
-
-function countChildrenApis(children: ApiModule[]): number {
-  return children.reduce((sum, c) => {
-    return sum + (c.api_count || 0) + countChildrenApis(c.children || [])
-  }, 0)
-}
 
 onMounted(async () => {
   await moduleStore.fetchModules()
@@ -186,20 +187,33 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   height: 100%;
   display: flex;
   flex-direction: column;
+  background-color: var(--color-surface-50);
 }
 
 .tree-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e4e7;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-neutral-200);
 }
 
 .tree-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #08060d;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  letter-spacing: -0.01em;
+}
+
+.add-btn {
+  font-size: 13px;
+  gap: 2px;
+}
+
+.tree-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
 }
 
 .tree-node {
@@ -207,29 +221,85 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   align-items: center;
   justify-content: space-between;
   flex: 1;
-  padding-right: 8px;
+  padding-right: 12px;
+  height: 100%;
+}
+
+.node-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.node-icon {
+  font-size: 14px;
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+}
+
+.tree-node.is-all .node-icon {
+  color: var(--color-primary-500);
 }
 
 .node-label {
-  font-size: 14px;
-  color: #08060d;
+  font-size: 13px;
+  color: var(--color-neutral-800);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .node-count {
-  font-size: 12px;
-  color: #6b6375;
-  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-neutral-400);
+  background-color: var(--color-neutral-100);
+  padding: 1px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+
+:deep(.el-tree) {
+  background-color: transparent;
+  --el-tree-node-content-height: 36px;
+}
+
+:deep(.el-tree-node__content) {
+  padding-left: 12px !important;
+  border-radius: 6px;
+  margin: 1px 8px;
+  transition: all var(--transition-fast);
 }
 
 :deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background-color: rgba(170, 59, 255, 0.1);
-  color: #aa3bff;
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+
+:deep(.el-tree-node.is-current > .el-tree-node__content .node-label) {
+  color: var(--color-primary-600);
+  font-weight: 600;
+}
+
+:deep(.el-tree-node.is-current > .el-tree-node__content .node-icon) {
+  color: var(--color-primary-500);
+}
+
+:deep(.el-tree-node.is-current > .el-tree-node__content .node-count) {
+  background-color: var(--color-primary-100);
+  color: var(--color-primary-600);
 }
 
 :deep(.el-tree-node__content:hover) {
-  background-color: #f4f3ec;
+  background-color: var(--color-surface-200);
+}
+
+:deep(.el-tree-node__expand-icon) {
+  font-size: 12px;
+  color: var(--color-neutral-400);
 }
 </style>

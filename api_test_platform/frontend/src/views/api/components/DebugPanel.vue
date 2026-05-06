@@ -359,9 +359,14 @@ async function handleSend() {
       timeout_config_overrides: debugTimeoutConfig.value && Object.keys(debugTimeoutConfig.value).length > 0 ? debugTimeoutConfig.value : null,
       timeout: 30
     })
-    ElMessage.success('请求完成')
+    
+    if (debugStore.debugResult?.error_message) {
+      ElMessage.error(debugStore.debugResult.error_message)
+    } else {
+      ElMessage.success('请求完成')
+    }
   } catch (error: any) {
-    // error handled by interceptor
+    ElMessage.error(error.message || '请求失败')
   }
 }
 

@@ -87,7 +87,7 @@
             :name="step.id"
           >
             <template #title>
-              <div class="step-header">
+              <div class="step-header" :class="{ 'step-failed': step.status === 'failed' || step.status === 'error' }">
                 <div class="step-left">
                   <el-tag round :type="getStepStatusType(step.status)" size="small" effect="dark">
                     {{ index + 1 }}
@@ -95,10 +95,26 @@
                   <el-tag :type="getStepStatusType(step.status)" size="small">
                     {{ getStepStatusText(step.status) }}
                   </el-tag>
-                  <span class="step-name">{{ step.step_name || `步骤 ${index + 1}` }}</span>
+                  <span class="step-name">{{ step.step_name || step.api_name || `步骤 ${index + 1}` }}</span>
+                  <el-tag v-if="step.status === 'skipped'" type="info" size="small" effect="plain">已跳过</el-tag>
+                  <el-tag v-if="step.error_message" type="danger" size="small" effect="plain">
+                    <el-icon><WarningFilled /></el-icon>
+                    有错误
+                  </el-tag>
                 </div>
                 <div class="step-right" @click.stop>
-                  <span class="step-duration">{{ step.duration ? `${step.duration}ms` : '-' }}</span>
+                  <span class="step-duration">{{ step.duration || step.response_time ? `${step.duration || step.response_time}ms` : '-' }}</span>
+                  <el-button
+                    v-if="step.status === 'failed' || step.status === 'error'"
+                    type="primary"
+                    link
+                    size="small"
+                    @click="handleRetryStep(step)"
+                    :loading="retryingStepId === step.id"
+                  >
+                    <el-icon><RefreshRight /></el-icon>
+                    重试
+                  </el-button>
                 </div>
               </div>
             </template>
@@ -114,7 +130,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, RefreshRight } from '@element-plus/icons-vue'
+import { ArrowLeft, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
 import { executionApi, testCaseApi, executeSSE } from '@/api/testcase'
 import type { SSEStepEvent } from '@/api/testcase'
 import type { ExecutionRecord, StepExecutionRecord } from '@/types/testcase'
@@ -126,6 +142,7 @@ const route = useRoute()
 const executionId = computed(() => Number(route.params.id))
 const loading = ref(false)
 const retrying = ref(false)
+const retryingStepId = ref<number | null>(null)
 const executionRecord = ref<ExecutionRecord | null>(null)
 const stepRecords = ref<StepExecutionRecord[]>([])
 const expandedSteps = ref<number[]>([])
@@ -154,12 +171,12 @@ function formatTime(time: string | null | undefined) {
 }
 
 function getStepStatusType(status: string) {
-  const map: Record<string, string> = { passed: 'success', failed: 'danger', skipped: 'warning', running: '' }
+  const map: Record<string, string> = { passed: 'success', failed: 'danger', skipped: 'warning', running: '', error: 'danger' }
   return map[status] || 'info'
 }
 
 function getStepStatusText(status: string) {
-  const map: Record<string, string> = { passed: '通过', failed: '失败', skipped: '跳过', running: '执行中' }
+  const map: Record<string, string> = { passed: '通过', failed: '失败', skipped: '跳过', running: '执行中', error: '错误' }
   return map[status] || status
 }
 
@@ -221,6 +238,29 @@ async function handleRetry() {
     console.error('重新执行失败:', error)
     ElMessage.error('重新执行失败')
     retrying.value = false
+  }
+}
+
+async function handleRetryStep(step: StepExecutionRecord) {
+  if (!executionRecord.value || !step.api_id) {
+    ElMessage.warning('无法重试：缺少接口信息')
+    return
+  }
+  
+  retryingStepId.value = step.id
+  try {
+    const res = await executionApi.retryStep(executionId.value, step.id)
+    if (res.success) {
+      ElMessage.success('步骤重试成功')
+      await fetchExecutionDetail()
+    } else {
+      ElMessage.error(res.message || '步骤重试失败')
+    }
+  } catch (error: any) {
+    console.error('步骤重试失败:', error)
+    ElMessage.error(error.message || '步骤重试失败')
+  } finally {
+    retryingStepId.value = null
   }
 }
 
@@ -290,6 +330,7 @@ onUnmounted(() => {
 .step-collapse :deep(.el-collapse-item__wrap) { border: none; border-top: 1px solid #e4e7ed; }
 .step-collapse :deep(.el-collapse-item__content) { padding: 16px; }
 .step-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.step-header.step-failed { background: linear-gradient(90deg, #fef0f0 0%, #fafafa 100%); }
 .step-left { display: flex; align-items: center; gap: 10px; }
 .step-name { font-weight: 500; color: #303133; }
 .step-right { display: flex; align-items: center; gap: 16px; }

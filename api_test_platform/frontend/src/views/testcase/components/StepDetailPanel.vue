@@ -1,18 +1,48 @@
 <template>
-  <div class="step-detail-panel">
-    <div class="panel-top-bar">
+  <div class="step-detail-panel" :class="{ 'has-error': step.error_message || step.status === 'failed' || step.status === 'error' }">
+    <div class="panel-top-bar" :class="{ 'error-bar': step.status === 'failed' || step.status === 'error' }">
       <div class="top-bar-left">
-        <el-tag v-if="step.request_data?.method" :type="getMethodType(step.request_data.method)" size="small" effect="dark">
-          {{ step.request_data.method?.toUpperCase() }}
+        <el-tag v-if="step.request_method || step.request_data?.method" :type="getMethodType(step.request_method || step.request_data?.method)" size="small" effect="dark">
+          {{ (step.request_method || step.request_data?.method)?.toUpperCase() }}
         </el-tag>
-        <span v-if="step.request_data?.url" class="top-bar-url">{{ step.request_data.url }}</span>
+        <span v-if="step.request_url || step.request_data?.url" class="top-bar-url">{{ step.request_url || step.request_data?.url }}</span>
       </div>
       <div class="top-bar-right">
-        <el-tag v-if="step.response_data?.status_code" :type="step.response_data.status_code < 400 ? 'success' : 'danger'" size="small" effect="dark">
-          {{ step.response_data.status_code }}
+        <el-tag v-if="step.response_status || step.response_data?.status_code" :type="(step.response_status || step.response_data?.status_code) < 400 ? 'success' : 'danger'" size="small" effect="dark">
+          {{ step.response_status || step.response_data?.status_code }}
         </el-tag>
-        <span v-if="step.duration" class="top-bar-duration">{{ step.duration }}ms</span>
+        <span v-if="step.duration || step.response_time" class="top-bar-duration">{{ step.duration || step.response_time }}ms</span>
       </div>
+    </div>
+
+    <div v-if="step.error_message" class="error-banner">
+      <div class="error-banner-header" @click="errorExpanded = !errorExpanded">
+        <div class="error-banner-left">
+          <el-icon class="error-icon"><WarningFilled /></el-icon>
+          <span class="error-title">执行失败</span>
+          <el-tag type="danger" size="small" effect="light">{{ getErrorType(step.error_message) }}</el-tag>
+        </div>
+        <div class="error-banner-right">
+          <span class="error-preview">{{ getErrorPreview(step.error_message) }}</span>
+          <el-icon class="expand-icon" :class="{ 'is-expanded': errorExpanded }"><ArrowDown /></el-icon>
+        </div>
+      </div>
+      <el-collapse-transition>
+        <div v-show="errorExpanded" class="error-banner-body">
+          <div class="error-detail-section">
+            <div class="error-detail-label">错误类型</div>
+            <div class="error-detail-value">{{ getErrorType(step.error_message) }}</div>
+          </div>
+          <div class="error-detail-section">
+            <div class="error-detail-label">错误描述</div>
+            <div class="error-detail-value">{{ step.error_message }}</div>
+          </div>
+          <div v-if="step.skip_reason" class="error-detail-section">
+            <div class="error-detail-label">跳过原因</div>
+            <div class="error-detail-value">{{ step.skip_reason }}</div>
+          </div>
+        </div>
+      </el-collapse-transition>
     </div>
 
     <el-tabs v-model="activeTab" class="detail-tabs">
@@ -167,7 +197,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import { CircleCheckFilled, CircleCloseFilled, WarningFilled, ArrowDown } from '@element-plus/icons-vue'
 import type { StepExecutionRecord } from '@/types/testcase'
 import ActionDetailRenderer from './ActionDetailRenderer.vue'
 
@@ -195,23 +225,24 @@ const props = defineProps<{
 const activeTab = ref(props.defaultTab || 'requestResponse')
 const reqExpanded = ref<string[]>([])
 const resExpanded = ref<string[]>([])
+const errorExpanded = ref(true)
 
 const preActions = computed(() => {
-  const raw = props.step.request_data?.pre_actions
+  const raw = props.step.request_data?.pre_actions || props.step.pre_actions
   if (!raw) return []
   if (Array.isArray(raw)) return raw
   try { return JSON.parse(raw) } catch { return [] }
 })
 
 const postActions = computed(() => {
-  const raw = props.step.request_data?.post_actions
+  const raw = props.step.request_data?.post_actions || props.step.post_actions
   if (!raw) return []
   if (Array.isArray(raw)) return raw
   try { return JSON.parse(raw) } catch { return [] }
 })
 
 const assertionList = computed(() => {
-  const raw = props.step.request_data?.assertions
+  const raw = props.step.request_data?.assertions || props.step.assertions
   if (!raw) return []
   if (Array.isArray(raw)) return raw
   try { return JSON.parse(raw) } catch { return [] }
@@ -236,15 +267,54 @@ function formatBody(body: any) {
   }
   return JSON.stringify(body, null, 2)
 }
+
+function getErrorType(errorMessage: string): string {
+  if (!errorMessage) return '未知错误'
+  if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) return '超时错误'
+  if (errorMessage.includes('connection') || errorMessage.includes('Connection')) return '连接错误'
+  if (errorMessage.includes('DNS') || errorMessage.includes('dns')) return 'DNS解析错误'
+  if (errorMessage.includes('SSL') || errorMessage.includes('certificate')) return 'SSL证书错误'
+  if (errorMessage.includes('Assertion') || errorMessage.includes('assertion')) return '断言失败'
+  if (errorMessage.includes('not found') || errorMessage.includes('Not found')) return '资源不存在'
+  if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) return '认证失败'
+  if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) return '权限不足'
+  if (errorMessage.includes('500') || errorMessage.includes('Internal Server Error')) return '服务器错误'
+  return '执行错误'
+}
+
+function getErrorPreview(errorMessage: string): string {
+  if (!errorMessage) return ''
+  const maxLen = 60
+  if (errorMessage.length <= maxLen) return errorMessage
+  return errorMessage.substring(0, maxLen) + '...'
+}
 </script>
 
 <style scoped>
 .step-detail-panel { width: 100%; }
+.step-detail-panel.has-error { border-left: 3px solid #f56c6c; }
 .panel-top-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f5f7fa; border-radius: 6px; margin-bottom: 12px; }
+.panel-top-bar.error-bar { background: #fef0f0; border: 1px solid #fbc4c4; }
 .top-bar-left { display: flex; align-items: center; gap: 8px; }
 .top-bar-url { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #6145ff; word-break: break-all; }
 .top-bar-right { display: flex; align-items: center; gap: 8px; }
 .top-bar-duration { color: #909399; font-size: 12px; }
+
+.error-banner { margin-bottom: 12px; border: 1px solid #fbc4c4; border-radius: 6px; overflow: hidden; background: #fef0f0; }
+.error-banner-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #fde2e2; cursor: pointer; user-select: none; }
+.error-banner-header:hover { background: #fcd4d4; }
+.error-banner-left { display: flex; align-items: center; gap: 8px; }
+.error-icon { color: #f56c6c; font-size: 18px; }
+.error-title { font-weight: 600; color: #f56c6c; font-size: 14px; }
+.error-banner-right { display: flex; align-items: center; gap: 8px; }
+.error-preview { color: #909399; font-size: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expand-icon { color: #909399; transition: transform 0.2s; }
+.expand-icon.is-expanded { transform: rotate(180deg); }
+.error-banner-body { padding: 14px; background: #fff; border-top: 1px solid #fbc4c4; }
+.error-detail-section { margin-bottom: 10px; }
+.error-detail-section:last-child { margin-bottom: 0; }
+.error-detail-label { font-size: 12px; color: #909399; margin-bottom: 4px; font-weight: 500; }
+.error-detail-value { font-size: 13px; color: #303133; line-height: 1.5; word-break: break-all; }
 
 .detail-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
 .tab-badge { margin-left: 4px; }

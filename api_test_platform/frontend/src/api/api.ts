@@ -144,11 +144,24 @@ export const recentApi = {
 }
 
 export const importApi = {
-  async preview(data: { file_type: string; file_content: string; module_id?: number }): Promise<any> {
+  async preview(data: { 
+    import_type: string
+    content?: string
+    url?: string
+    module_id?: number
+    conflict_strategy?: string
+  }): Promise<any> {
     return client.post(`/teams/${TEAM_ID}/apis/import/preview`, data)
   },
 
-  async execute(data: { file_type: string; file_content: string; module_id?: number; overwrite?: boolean }): Promise<any> {
+  async execute(data: { 
+    import_type: string
+    content?: string
+    url?: string
+    module_id?: number
+    conflict_strategy?: string
+    selected_apis?: number[]
+  }): Promise<any> {
     return client.post(`/teams/${TEAM_ID}/apis/import`, data)
   },
 }

@@ -34,10 +34,6 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>测试管理</span>
         </template>
-        <el-menu-item index="/scenarios">
-          <el-icon><Film /></el-icon>
-          <template #title>测试场景</template>
-        </el-menu-item>
         <el-menu-item index="/plans">
           <el-icon><Calendar /></el-icon>
           <template #title>测试计划</template>
@@ -74,7 +70,6 @@ import {
   Connection,
   DocumentChecked,
   DataAnalysis,
-  Film,
   Calendar,
   TrendCharts,
   Setting,
@@ -96,7 +91,6 @@ const activeMenu = computed(() => {
   if (path.startsWith('/environments')) return '/environments'
   if (path.startsWith('/apis')) return '/apis'
   if (path.startsWith('/testcase') || path.startsWith('/execution')) return '/testcase'
-  if (path.startsWith('/scenarios')) return '/scenarios'
   if (path.startsWith('/plans')) return '/plans'
   if (path.startsWith('/reports')) return '/reports'
   if (path.startsWith('/admin/teams')) return '/admin/teams'

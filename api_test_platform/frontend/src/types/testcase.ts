@@ -122,16 +122,32 @@ export interface ExecutionRecord {
 
 export interface StepExecutionRecord {
   id: number
-  execution_id: number
-  step_id: number
-  step_name: string
+  case_execution_id: number
+  step_id: number | null
+  step_name: string | null
+  step_order: number | null
+  api_id: number | null
+  api_name: string | null
   status: string
+  skip_reason: string | null
+  request_url: string | null
+  request_method: string | null
+  request_headers: string | null
+  request_body: string | null
+  response_status: number | null
+  response_headers: string | null
+  response_body: string | null
+  response_time: number | null
+  assertions: string | null
+  extractors: string | null
+  pre_actions: string | null
+  post_actions: string | null
   start_time: string | null
   end_time: string | null
-  duration: number
+  duration: number | null
+  error_message: string | null
   request_data: any | null
   response_data: any | null
-  error_message: string | null
 }
 
 export interface CrossTeamCopyCheck {
