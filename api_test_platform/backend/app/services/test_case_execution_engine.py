@@ -234,7 +234,6 @@ class TestCaseExecutionEngine:
                 logger.warning(f"API step missing api_id: step_id={step_id}")
                 step_result["status"] = "failed"
                 step_result["error_message"] = "API ID is required for api step"
-                return step_result
 
             api = self.db.query(ApiDefinition).filter(
                 ApiDefinition.id == api_id,
@@ -245,174 +244,173 @@ class TestCaseExecutionEngine:
                 logger.error(f"API definition not found: api_id={api_id}")
                 step_result["status"] = "failed"
                 step_result["error_message"] = f"API {api_id} not found"
-                return step_result
 
-            step_result["api_name"] = api.name
+            if step_result["status"] not in ["failed", "error"]:
+                step_result["api_name"] = api.name
 
-            header_overrides = step.get("override_headers")
-            if isinstance(header_overrides, str):
-                try:
-                    header_overrides = json.loads(header_overrides)
-                except json.JSONDecodeError:
-                    header_overrides = None
+                header_overrides = step.get("override_headers")
+                if isinstance(header_overrides, str):
+                    try:
+                        header_overrides = json.loads(header_overrides)
+                    except json.JSONDecodeError:
+                        header_overrides = None
 
-            param_overrides = step.get("override_params")
-            if isinstance(param_overrides, str):
-                try:
-                    param_overrides = json.loads(param_overrides)
-                except json.JSONDecodeError:
-                    param_overrides = None
+                param_overrides = step.get("override_params")
+                if isinstance(param_overrides, str):
+                    try:
+                        param_overrides = json.loads(param_overrides)
+                    except json.JSONDecodeError:
+                        param_overrides = None
 
-            body_overrides = step.get("override_body")
-            if isinstance(body_overrides, str):
-                try:
-                    parsed = json.loads(body_overrides)
-                    if isinstance(parsed, dict):
-                        body_overrides = json.dumps(parsed, ensure_ascii=False)
-                except json.JSONDecodeError:
-                    pass
+                body_overrides = step.get("override_body")
+                if isinstance(body_overrides, str):
+                    try:
+                        parsed = json.loads(body_overrides)
+                        if isinstance(parsed, dict):
+                            body_overrides = json.dumps(parsed, ensure_ascii=False)
+                    except json.JSONDecodeError:
+                        pass
 
-            cookie_overrides = step.get("override_cookies")
-            if isinstance(cookie_overrides, str):
-                try:
-                    cookie_overrides = json.loads(cookie_overrides)
-                except json.JSONDecodeError:
-                    cookie_overrides = None
+                cookie_overrides = step.get("override_cookies")
+                if isinstance(cookie_overrides, str):
+                    try:
+                        cookie_overrides = json.loads(cookie_overrides)
+                    except json.JSONDecodeError:
+                        cookie_overrides = None
 
-            assertions_overrides = step.get("assertions")
-            if isinstance(assertions_overrides, str):
-                try:
-                    assertions_overrides = json.loads(assertions_overrides)
-                except json.JSONDecodeError:
-                    assertions_overrides = None
+                assertions_overrides = step.get("assertions")
+                if isinstance(assertions_overrides, str):
+                    try:
+                        assertions_overrides = json.loads(assertions_overrides)
+                    except json.JSONDecodeError:
+                        assertions_overrides = None
 
-            timeout_overrides = step.get("timeout_config")
-            if isinstance(timeout_overrides, str):
-                try:
-                    timeout_overrides = json.loads(timeout_overrides)
-                except json.JSONDecodeError:
-                    timeout_overrides = None
+                timeout_overrides = step.get("timeout_config")
+                if isinstance(timeout_overrides, str):
+                    try:
+                        timeout_overrides = json.loads(timeout_overrides)
+                    except json.JSONDecodeError:
+                        timeout_overrides = None
 
-            pre_script = step.get("pre_script")
-            pre_request_actions = None
-            if pre_script:
-                pre_request_actions = [{
-                    "id": "pre_script",
-                    "name": "前置脚本",
-                    "type": "script",
-                    "enabled": True,
-                    "config": {
-                        "script": pre_script,
-                    }
-                }]
-
-            post_script = step.get("post_script")
-            post_request_actions = None
-            if post_script:
-                post_request_actions = [{
-                    "id": "post_script",
-                    "name": "后置脚本",
-                    "type": "script",
-                    "enabled": True,
-                    "config": {
-                        "script": post_script,
-                    }
-                }]
-
-            debug_result = await self.debug_engine.execute(
-                api_id=api_id,
-                environment_id=context["environment_id"],
-                service_id=api.service_id,
-                param_overrides=param_overrides,
-                header_overrides=header_overrides,
-                body_overrides=body_overrides,
-                body_type=step.get("override_body_type"),
-                cookie_overrides=cookie_overrides,
-                pre_request_actions_overrides=pre_request_actions,
-                post_request_actions_overrides=post_request_actions,
-                assertions_overrides=assertions_overrides,
-                timeout_config_overrides=timeout_overrides,
-            )
-
-            step_result["request_url"] = debug_result.get("request_url")
-            step_result["request_method"] = api.method
-            step_result["response_status"] = debug_result.get("status_code")
-            step_result["response_time"] = debug_result.get("elapsed_ms")
-            step_result["debug_result"] = debug_result
-            
-            step_result["request_data"] = {
-                "method": api.method,
-                "url": debug_result.get("request_url"),
-                "headers": debug_result.get("request_headers"),
-                "body": debug_result.get("request_body"),
-            }
-            step_result["response_data"] = {
-                "status_code": debug_result.get("status_code"),
-                "headers": debug_result.get("headers"),
-                "body": debug_result.get("body"),
-                "duration": debug_result.get("elapsed_ms"),
-            }
-            if debug_result.get("pre_request_results"):
-                step_result["pre_actions"] = debug_result["pre_request_results"]
-            if debug_result.get("post_request_results"):
-                step_result["post_actions"] = debug_result["post_request_results"]
-            if debug_result.get("assertion_results"):
-                step_result["assertions"] = debug_result["assertion_results"]
-
-            if debug_result.get("error_message"):
-                logger.error(f"API step execution error: step_id={step_id}, error={debug_result['error_message']}")
-                step_result["status"] = "error"
-                step_result["error_message"] = debug_result["error_message"]
-                return step_result
-
-            assertion_results = debug_result.get("assertion_results")
-            assertion_summary = debug_result.get("assertion_summary")
-            step_result["assertion_results"] = assertion_results
-            step_result["assertion_summary"] = assertion_summary
-
-            if assertion_summary and not assertion_summary.get("all_passed", True):
-                step_result["status"] = "failed"
-                logger.debug(f"Step assertion failed: step_id={step_id}, assertion_summary={assertion_summary}")
-                failed_assertions = [
-                    a for a in (assertion_results or [])
-                    if not a.get("passed", True)
-                ]
-                if failed_assertions:
-                    step_result["error_message"] = "; ".join(
-                        a.get("message", "Assertion failed") for a in failed_assertions[:3]
-                    )
-            else:
-                step_result["status"] = "passed"
-                logger.debug(f"Step passed: step_id={step_id}, response_status={debug_result.get('status_code')}, response_time={debug_result.get('elapsed_ms')}ms")
-
-            extracted = self._extract_step_variables_from_dict(step, debug_result)
-            step_result["extracted_variables"] = extracted
-            logger.debug(f"Step extracted variables: step_id={step_id}, variables={list(extracted.keys()) if extracted else 'none'}")
-
-            extractors = step.get("extractors")
-            if extractors:
-                try:
-                    configs = json.loads(extractors) if isinstance(extractors, str) else extractors
-                    extractor_list = []
-                    for config in configs:
-                        if not config.get("enabled", True):
-                            continue
-                        cfg = config.get("config", {})
-                        var_name = cfg.get("target_variable", "")
-                        extractor_info = {
-                            "variable_name": var_name,
-                            "extract_type": cfg.get("extract_type", "jsonpath"),
-                            "expression": cfg.get("expression", ""),
-                            "source": cfg.get("source", "body"),
-                            "default_value": cfg.get("default_value", ""),
-                            "value": extracted.get(var_name) if extracted else None,
-                            "success": extracted.get(var_name) is not None if extracted else False
+                pre_script = step.get("pre_script")
+                pre_request_actions = None
+                if pre_script:
+                    pre_request_actions = [{
+                        "id": "pre_script",
+                        "name": "前置脚本",
+                        "type": "script",
+                        "enabled": True,
+                        "config": {
+                            "script": pre_script,
                         }
-                        extractor_list.append(extractor_info)
-                    if extractor_list:
-                        step_result["extractors"] = extractor_list
-                except (json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"Failed to process extractors for step result: {str(e)}")
+                    }]
+
+                post_script = step.get("post_script")
+                post_request_actions = None
+                if post_script:
+                    post_request_actions = [{
+                        "id": "post_script",
+                        "name": "后置脚本",
+                        "type": "script",
+                        "enabled": True,
+                        "config": {
+                            "script": post_script,
+                        }
+                    }]
+
+                debug_result = await self.debug_engine.execute(
+                    api_id=api_id,
+                    environment_id=context["environment_id"],
+                    service_id=api.service_id,
+                    param_overrides=param_overrides,
+                    header_overrides=header_overrides,
+                    body_overrides=body_overrides,
+                    body_type=step.get("override_body_type"),
+                    cookie_overrides=cookie_overrides,
+                    pre_request_actions_overrides=pre_request_actions,
+                    post_request_actions_overrides=post_request_actions,
+                    assertions_overrides=assertions_overrides,
+                    timeout_config_overrides=timeout_overrides,
+                )
+
+                step_result["request_url"] = debug_result.get("request_url")
+                step_result["request_method"] = api.method
+                step_result["response_status"] = debug_result.get("status_code")
+                step_result["response_time"] = debug_result.get("elapsed_ms")
+                step_result["debug_result"] = debug_result
+                
+                step_result["request_data"] = {
+                    "method": api.method,
+                    "url": debug_result.get("request_url"),
+                    "headers": debug_result.get("request_headers"),
+                    "body": debug_result.get("request_body"),
+                }
+                step_result["response_data"] = {
+                    "status_code": debug_result.get("status_code"),
+                    "headers": debug_result.get("headers"),
+                    "body": debug_result.get("body"),
+                    "duration": debug_result.get("elapsed_ms"),
+                }
+                if debug_result.get("pre_request_results"):
+                    step_result["pre_actions"] = debug_result["pre_request_results"]
+                if debug_result.get("post_request_results"):
+                    step_result["post_actions"] = debug_result["post_request_results"]
+                if debug_result.get("assertion_results"):
+                    step_result["assertions"] = debug_result["assertion_results"]
+
+                if debug_result.get("error_message"):
+                    logger.error(f"API step execution error: step_id={step_id}, error={debug_result['error_message']}")
+                    step_result["status"] = "error"
+                    step_result["error_message"] = debug_result["error_message"]
+                else:
+                    assertion_results = debug_result.get("assertion_results")
+                    assertion_summary = debug_result.get("assertion_summary")
+                    step_result["assertion_results"] = assertion_results
+                    step_result["assertion_summary"] = assertion_summary
+
+                    if assertion_summary and not assertion_summary.get("all_passed", True):
+                        step_result["status"] = "failed"
+                        logger.debug(f"Step assertion failed: step_id={step_id}, assertion_summary={assertion_summary}")
+                        failed_assertions = [
+                            a for a in (assertion_results or [])
+                            if not a.get("passed", True)
+                        ]
+                        if failed_assertions:
+                            step_result["error_message"] = "; ".join(
+                                a.get("message", "Assertion failed") for a in failed_assertions[:3]
+                            )
+                    else:
+                        step_result["status"] = "passed"
+                        logger.debug(f"Step passed: step_id={step_id}, response_status={debug_result.get('status_code')}, response_time={debug_result.get('elapsed_ms')}ms")
+
+                    extracted = self._extract_step_variables_from_dict(step, debug_result)
+                    step_result["extracted_variables"] = extracted
+                    logger.debug(f"Step extracted variables: step_id={step_id}, variables={list(extracted.keys()) if extracted else 'none'}")
+
+                    extractors = step.get("extractors")
+                    if extractors:
+                        try:
+                            configs = json.loads(extractors) if isinstance(extractors, str) else extractors
+                            extractor_list = []
+                            for config in configs:
+                                if not config.get("enabled", True):
+                                    continue
+                                cfg = config.get("config", {})
+                                var_name = cfg.get("target_variable", "")
+                                extractor_info = {
+                                    "variable_name": var_name,
+                                    "extract_type": cfg.get("extract_type", "jsonpath"),
+                                    "expression": cfg.get("expression", ""),
+                                    "source": cfg.get("source", "body"),
+                                    "default_value": cfg.get("default_value", ""),
+                                    "value": extracted.get(var_name) if extracted else None,
+                                    "success": extracted.get(var_name) is not None if extracted else False
+                                }
+                                extractor_list.append(extractor_info)
+                            if extractor_list:
+                                step_result["extractors"] = extractor_list
+                        except (json.JSONDecodeError, TypeError) as e:
+                            logger.warning(f"Failed to process extractors for step result: {str(e)}")
 
         except Exception as e:
             logger.error(f"Step execution error: step_id={step.get('id')}, error={str(e)}", exc_info=True)
@@ -420,8 +418,11 @@ class TestCaseExecutionEngine:
             step_result["error_message"] = str(e)
 
         if execution_record:
-            step_obj = self._make_step_obj(step)
-            self._save_step_record(execution_record.id, step_obj, step_result.get("_step_index", 0), step_result)
+            try:
+                step_obj = self._make_step_obj(step)
+                self._save_step_record(execution_record.id, step_obj, step_result.get("_step_index", 0), step_result)
+            except Exception as e:
+                logger.error(f"Failed to save step record for step_id={step.get('id')}: {str(e)}", exc_info=True)
 
         return step_result
 
@@ -846,106 +847,109 @@ class TestCaseExecutionEngine:
         step_result: Dict[str, Any],
     ):
         """Save step execution record to database."""
-        api_name = None
-        if step.api_id:
-            api = self.db.query(ApiDefinition).filter(ApiDefinition.id == step.api_id).first()
-            if api:
-                api_name = api.name
+        try:
+            api_name = None
+            if step.api_id:
+                api = self.db.query(ApiDefinition).filter(ApiDefinition.id == step.api_id).first()
+                if api:
+                    api_name = api.name
 
-        step_record = self.execution_service.create_step_execution_record(
-            case_execution_id=execution_id,
-            step_id=step.id,
-            step_name=step_result.get("step_name"),
-            step_order=step_index + 1,
-            api_id=step.api_id,
-            api_name=api_name,
-            status=step_result.get("status", "pending"),
-        )
-
-        update_kwargs = {}
-        if step_result.get("request_url"):
-            update_kwargs["request_url"] = step_result["request_url"]
-        if step_result.get("request_method"):
-            update_kwargs["request_method"] = step_result["request_method"]
-        if step_result.get("response_status"):
-            update_kwargs["response_status"] = step_result["response_status"]
-        if step_result.get("response_time"):
-            update_kwargs["response_time"] = step_result["response_time"]
-        if step_result.get("error_message"):
-            update_kwargs["error_message"] = step_result["error_message"]
-        if step_result.get("skip_reason"):
-            update_kwargs["skip_reason"] = step_result["skip_reason"]
-        if step_result.get("assertion_results"):
-            update_kwargs["assertions"] = json.dumps(
-                step_result["assertion_results"], ensure_ascii=False
+            step_record = self.execution_service.create_step_execution_record(
+                case_execution_id=execution_id,
+                step_id=step.id,
+                step_name=step_result.get("step_name"),
+                step_order=step_index + 1,
+                api_id=step.api_id,
+                api_name=api_name,
+                status=step_result.get("status", "pending"),
             )
-        
-        extracted_variables = step_result.get("extracted_variables", {})
-        if extracted_variables or step.extractors:
-            extractor_configs = []
-            if step.extractors:
-                try:
-                    configs = json.loads(step.extractors) if isinstance(step.extractors, str) else step.extractors
-                    logger.info(f"Processing extractors: {configs}")
-                    for config in configs:
-                        if not config.get("enabled", True):
-                            continue
-                        cfg = config.get("config", {})
-                        var_name = cfg.get("target_variable", "")
-                        extractor_info = {
-                            "variable_name": var_name,
-                            "extract_type": cfg.get("extract_type", "jsonpath"),
-                            "expression": cfg.get("expression", ""),
-                            "source": cfg.get("source", "body"),
-                            "default_value": cfg.get("default_value", ""),
-                            "value": extracted_variables.get(var_name) if extracted_variables else None,
-                            "success": extracted_variables.get(var_name) is not None if extracted_variables else False
-                        }
-                        logger.info(f"Extractor info: {extractor_info}")
-                        extractor_configs.append(extractor_info)
-                except (json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"Failed to process extractors: {str(e)}")
-                    pass
+
+            update_kwargs = {}
+            if step_result.get("request_url"):
+                update_kwargs["request_url"] = step_result["request_url"]
+            if step_result.get("request_method"):
+                update_kwargs["request_method"] = step_result["request_method"]
+            if step_result.get("response_status"):
+                update_kwargs["response_status"] = step_result["response_status"]
+            if step_result.get("response_time"):
+                update_kwargs["response_time"] = step_result["response_time"]
+            if step_result.get("error_message"):
+                update_kwargs["error_message"] = step_result["error_message"]
+            if step_result.get("skip_reason"):
+                update_kwargs["skip_reason"] = step_result["skip_reason"]
+            if step_result.get("assertion_results"):
+                update_kwargs["assertions"] = json.dumps(
+                    step_result["assertion_results"], ensure_ascii=False
+                )
             
-            logger.info(f"Final extractor_configs: {extractor_configs}, extracted_variables: {extracted_variables}")
-            if extractor_configs:
-                update_kwargs["extractors"] = json.dumps(
-                    extractor_configs, ensure_ascii=False
-                )
-            elif extracted_variables:
-                update_kwargs["extractors"] = json.dumps(
-                    extracted_variables, ensure_ascii=False
-                )
+            extracted_variables = step_result.get("extracted_variables", {})
+            if extracted_variables or step.extractors:
+                extractor_configs = []
+                if step.extractors:
+                    try:
+                        configs = json.loads(step.extractors) if isinstance(step.extractors, str) else step.extractors
+                        logger.info(f"Processing extractors: {configs}")
+                        for config in configs:
+                            if not config.get("enabled", True):
+                                continue
+                            cfg = config.get("config", {})
+                            var_name = cfg.get("target_variable", "")
+                            extractor_info = {
+                                "variable_name": var_name,
+                                "extract_type": cfg.get("extract_type", "jsonpath"),
+                                "expression": cfg.get("expression", ""),
+                                "source": cfg.get("source", "body"),
+                                "default_value": cfg.get("default_value", ""),
+                                "value": extracted_variables.get(var_name) if extracted_variables else None,
+                                "success": extracted_variables.get(var_name) is not None if extracted_variables else False
+                            }
+                            logger.info(f"Extractor info: {extractor_info}")
+                            extractor_configs.append(extractor_info)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"Failed to process extractors: {str(e)}")
+                        pass
+                
+                logger.info(f"Final extractor_configs: {extractor_configs}, extracted_variables: {extracted_variables}")
+                if extractor_configs:
+                    update_kwargs["extractors"] = json.dumps(
+                        extractor_configs, ensure_ascii=False
+                    )
+                elif extracted_variables:
+                    update_kwargs["extractors"] = json.dumps(
+                        extracted_variables, ensure_ascii=False
+                    )
 
-        debug_result = step_result.get("debug_result")
-        if debug_result:
-            if debug_result.get("request_headers"):
-                update_kwargs["request_headers"] = json.dumps(
-                    debug_result["request_headers"], ensure_ascii=False
-                ) if isinstance(debug_result["request_headers"], dict) else debug_result["request_headers"]
-            if debug_result.get("request_body"):
-                body = debug_result.get("request_body", "")
-                update_kwargs["request_body"] = body[:50000] if body else None
-            if debug_result.get("body") and step_result.get("status") != "skipped":
-                body = debug_result.get("body", "")
-                update_kwargs["response_body"] = body[:50000] if body else None
-            if debug_result.get("headers"):
-                update_kwargs["response_headers"] = json.dumps(
-                    debug_result["headers"], ensure_ascii=False
-                ) if isinstance(debug_result["headers"], dict) else debug_result["headers"]
-            if debug_result.get("pre_request_results"):
-                update_kwargs["pre_actions"] = json.dumps(
-                    debug_result["pre_request_results"], ensure_ascii=False
-                )
-            if debug_result.get("post_request_results"):
-                update_kwargs["post_actions"] = json.dumps(
-                    debug_result["post_request_results"], ensure_ascii=False
-                )
+            debug_result = step_result.get("debug_result")
+            if debug_result:
+                if debug_result.get("request_headers"):
+                    update_kwargs["request_headers"] = json.dumps(
+                        debug_result["request_headers"], ensure_ascii=False
+                    ) if isinstance(debug_result["request_headers"], dict) else debug_result["request_headers"]
+                if debug_result.get("request_body"):
+                    body = debug_result.get("request_body", "")
+                    update_kwargs["request_body"] = body[:50000] if body else None
+                if debug_result.get("body") and step_result.get("status") != "skipped":
+                    body = debug_result.get("body", "")
+                    update_kwargs["response_body"] = body[:50000] if body else None
+                if debug_result.get("headers"):
+                    update_kwargs["response_headers"] = json.dumps(
+                        debug_result["headers"], ensure_ascii=False
+                    ) if isinstance(debug_result["headers"], dict) else debug_result["headers"]
+                if debug_result.get("pre_request_results"):
+                    update_kwargs["pre_actions"] = json.dumps(
+                        debug_result["pre_request_results"], ensure_ascii=False
+                    )
+                if debug_result.get("post_request_results"):
+                    update_kwargs["post_actions"] = json.dumps(
+                        debug_result["post_request_results"], ensure_ascii=False
+                    )
 
-        if update_kwargs:
-            self.execution_service.update_step_execution_record(
-                step_execution_id=step_record.id, **update_kwargs
-            )
+            if update_kwargs:
+                self.execution_service.update_step_execution_record(
+                    step_execution_id=step_record.id, **update_kwargs
+                )
+        except Exception as e:
+            logger.error(f"Failed to save step execution record: execution_id={execution_id}, step_id={step.id}, error={str(e)}", exc_info=True)
 
     def _finalize_execution_record(
         self,

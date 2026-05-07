@@ -17,11 +17,82 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+TEST_CASE_JSON_FIELDS = {
+    'tags': {'type': list, 'default': [], 'log_level': 'warning'},
+    'variables': {'type': list, 'default': [], 'log_level': 'warning'},
+}
+
+TEST_STEP_JSON_FIELDS = {
+    'override_headers': {'type': dict, 'default': None, 'log_level': 'debug'},
+    'override_params': {'type': dict, 'default': None, 'log_level': 'debug'},
+    'override_body': {'type': dict, 'default': None, 'log_level': 'debug'},
+    'override_cookies': {'type': list, 'default': None, 'log_level': 'debug'},
+    'assertions': {'type': list, 'default': None, 'log_level': 'debug'},
+    'extractors': {'type': list, 'default': None, 'log_level': 'debug'},
+    'timeout_config': {'type': dict, 'default': None, 'log_level': 'debug'},
+    'execution_condition': {'type': dict, 'default': None, 'log_level': 'debug'},
+}
+
+
 class TestCaseService:
     """Test Case Service for cross-team copy operations"""
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _safe_json_loads(self, json_str: str, default_value: Any = None, 
+                         field_name: str = "", entity_id: int = None, 
+                         log_level: str = "debug") -> Any:
+        """
+        安全的 JSON 反序列化
+        
+        Args:
+            json_str: JSON 字符串
+            default_value: 解析失败时的默认值
+            field_name: 字段名称（用于日志）
+            entity_id: 实体 ID（用于日志）
+            log_level: 日志级别（debug 或 warning）
+        
+        Returns:
+            解析后的对象或默认值
+        """
+        if not json_str or not isinstance(json_str, str):
+            return default_value
+        
+        try:
+            return json.loads(json_str)
+        except Exception as e:
+            log_msg = f"{field_name} JSON解析失败"
+            if entity_id:
+                log_msg += f": id={entity_id}"
+            log_msg += f", error={str(e)}"
+            
+            if log_level == "warning":
+                logger.warning(log_msg)
+            else:
+                logger.debug(log_msg)
+            
+            return default_value
+
+    def _safe_json_dumps(self, obj: Any, field_name: str = "") -> Optional[str]:
+        """
+        安全的 JSON 序列化
+        
+        Args:
+            obj: 要序列化的对象
+            field_name: 字段名称（用于日志）
+        
+        Returns:
+            JSON 字符串，如果对象为 None 则返回 None
+        """
+        if obj is None:
+            return None
+        
+        try:
+            return json.dumps(obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"{field_name} JSON序列化失败: error={str(e)}")
+            return None
 
     @staticmethod
     def build_step_tree(steps) -> list:
@@ -77,80 +148,33 @@ class TestCaseService:
 
     def _convert_test_case(self, test_case: TestCase) -> TestCase:
         """Convert JSON string fields to Python objects"""
-        if test_case:
-            # Convert tags
-            if test_case.tags and isinstance(test_case.tags, str):
-                try:
-                    test_case.tags = json.loads(test_case.tags)
-                except Exception:
-                    logger.warning(f"测试用例tags JSON解析失败: test_case_id={test_case.id}")
-                    test_case.tags = []
-            
-            # Convert variables
-            if test_case.variables and isinstance(test_case.variables, str):
-                try:
-                    test_case.variables = json.loads(test_case.variables)
-                except Exception:
-                    logger.warning(f"测试用例variables JSON解析失败: test_case_id={test_case.id}")
-                    test_case.variables = []
-            
-            # Convert step fields
-            for step in test_case.steps:
-                if step.override_headers and isinstance(step.override_headers, str):
-                    try:
-                        step.override_headers = json.loads(step.override_headers)
-                    except Exception:
-                        logger.debug(f"步骤override_headers JSON解析失败: step_id={step.id}")
-                        step.override_headers = None
-                
-                if step.override_params and isinstance(step.override_params, str):
-                    try:
-                        step.override_params = json.loads(step.override_params)
-                    except Exception:
-                        logger.debug(f"步骤override_params JSON解析失败: step_id={step.id}")
-                        step.override_params = None
-                
-                if step.override_body and isinstance(step.override_body, str):
-                    try:
-                        step.override_body = json.loads(step.override_body)
-                    except Exception:
-                        logger.debug(f"步骤override_body JSON解析失败: step_id={step.id}")
-                        step.override_body = None
-                
-                if step.override_cookies and isinstance(step.override_cookies, str):
-                    try:
-                        step.override_cookies = json.loads(step.override_cookies)
-                    except Exception:
-                        logger.debug(f"步骤override_cookies JSON解析失败: step_id={step.id}")
-                        step.override_cookies = None
-                
-                if step.assertions and isinstance(step.assertions, str):
-                    try:
-                        step.assertions = json.loads(step.assertions)
-                    except Exception:
-                        logger.debug(f"步骤assertions JSON解析失败: step_id={step.id}")
-                        step.assertions = None
-                
-                if step.extractors and isinstance(step.extractors, str):
-                    try:
-                        step.extractors = json.loads(step.extractors)
-                    except Exception:
-                        logger.debug(f"步骤extractors JSON解析失败: step_id={step.id}")
-                        step.extractors = None
-                
-                if step.timeout_config and isinstance(step.timeout_config, str):
-                    try:
-                        step.timeout_config = json.loads(step.timeout_config)
-                    except Exception:
-                        logger.debug(f"步骤timeout_config JSON解析失败: step_id={step.id}")
-                        step.timeout_config = None
-                
-                if step.execution_condition and isinstance(step.execution_condition, str):
-                    try:
-                        step.execution_condition = json.loads(step.execution_condition)
-                    except Exception:
-                        logger.debug(f"步骤execution_condition JSON解析失败: step_id={step.id}")
-                        step.execution_condition = None
+        if not test_case:
+            return test_case
+        
+        for field_name, config in TEST_CASE_JSON_FIELDS.items():
+            field_value = getattr(test_case, field_name, None)
+            if field_value is not None:
+                converted_value = self._safe_json_loads(
+                    field_value, 
+                    default_value=config['default'],
+                    field_name=f"测试用例{field_name}",
+                    entity_id=test_case.id,
+                    log_level=config['log_level']
+                )
+                setattr(test_case, field_name, converted_value)
+        
+        for step in test_case.steps:
+            for field_name, config in TEST_STEP_JSON_FIELDS.items():
+                field_value = getattr(step, field_name, None)
+                if field_value is not None:
+                    converted_value = self._safe_json_loads(
+                        field_value,
+                        default_value=config['default'],
+                        field_name=f"步骤{field_name}",
+                        entity_id=step.id,
+                        log_level=config['log_level']
+                    )
+                    setattr(step, field_name, converted_value)
         
         return test_case
 
@@ -238,11 +262,13 @@ class TestCaseService:
             # Create test case
             test_case_dict = test_case_data.model_dump(exclude={'steps'})
             
-            # Convert tags and variables to JSON string if they are lists
-            if 'tags' in test_case_dict and isinstance(test_case_dict['tags'], list):
-                test_case_dict['tags'] = json.dumps(test_case_dict['tags'], ensure_ascii=False)
-            if 'variables' in test_case_dict and isinstance(test_case_dict['variables'], list):
-                test_case_dict['variables'] = json.dumps(test_case_dict['variables'], ensure_ascii=False)
+            # Convert JSON fields to strings
+            for field_name, config in TEST_CASE_JSON_FIELDS.items():
+                if field_name in test_case_dict and isinstance(test_case_dict[field_name], config['type']):
+                    test_case_dict[field_name] = self._safe_json_dumps(
+                        test_case_dict[field_name],
+                        field_name=f"测试用例{field_name}"
+                    )
             
             test_case = TestCase(
                 team_id=team_id,
@@ -260,23 +286,14 @@ class TestCaseService:
                     if step_dict.get('step_type') is None:
                         step_dict['step_type'] = 'api'
                     
-                    # Convert JSON fields to string
-                    if step_dict.get('override_headers') and isinstance(step_dict['override_headers'], dict):
-                        step_dict['override_headers'] = json.dumps(step_dict['override_headers'])
-                    if step_dict.get('override_params') and isinstance(step_dict['override_params'], dict):
-                        step_dict['override_params'] = json.dumps(step_dict['override_params'])
-                    if step_dict.get('override_body') and isinstance(step_dict['override_body'], dict):
-                        step_dict['override_body'] = json.dumps(step_dict['override_body'])
-                    if step_dict.get('override_cookies') and isinstance(step_dict['override_cookies'], list):
-                        step_dict['override_cookies'] = json.dumps(step_dict['override_cookies'])
-                    if step_dict.get('assertions') and isinstance(step_dict['assertions'], list):
-                        step_dict['assertions'] = json.dumps(step_dict['assertions'])
-                    if step_dict.get('extractors') and isinstance(step_dict['extractors'], list):
-                        step_dict['extractors'] = json.dumps(step_dict['extractors'])
-                    if step_dict.get('timeout_config') and isinstance(step_dict['timeout_config'], dict):
-                        step_dict['timeout_config'] = json.dumps(step_dict['timeout_config'])
-                    if step_dict.get('execution_condition') and isinstance(step_dict['execution_condition'], dict):
-                        step_dict['execution_condition'] = json.dumps(step_dict['execution_condition'])
+                    # Convert JSON fields to strings
+                    for field_name, config in TEST_STEP_JSON_FIELDS.items():
+                        field_value = step_dict.get(field_name)
+                        if field_value and isinstance(field_value, config['type']):
+                            step_dict[field_name] = self._safe_json_dumps(
+                                field_value,
+                                field_name=f"步骤{field_name}"
+                            )
                     
                     step = TestCaseStep(
                         test_case_id=test_case.id,
@@ -330,10 +347,12 @@ class TestCaseService:
             update_dict = test_case_data.model_dump(exclude_unset=True, exclude={'steps'})
             
             # Convert JSON fields
-            if 'tags' in update_dict and isinstance(update_dict['tags'], list):
-                update_dict['tags'] = json.dumps(update_dict['tags'])
-            if 'variables' in update_dict and isinstance(update_dict['variables'], list):
-                update_dict['variables'] = json.dumps(update_dict['variables'])
+            for field_name, config in TEST_CASE_JSON_FIELDS.items():
+                if field_name in update_dict and isinstance(update_dict[field_name], config['type']):
+                    update_dict[field_name] = self._safe_json_dumps(
+                        update_dict[field_name],
+                        field_name=f"测试用例{field_name}"
+                    )
             
             for field, value in update_dict.items():
                 setattr(test_case, field, value)
@@ -353,23 +372,14 @@ class TestCaseService:
                     if step_dict.get('step_type') is None:
                         step_dict['step_type'] = 'api'
                     
-                    # Convert JSON fields to string
-                    if step_dict.get('override_headers') and isinstance(step_dict['override_headers'], dict):
-                        step_dict['override_headers'] = json.dumps(step_dict['override_headers'])
-                    if step_dict.get('override_params') and isinstance(step_dict['override_params'], dict):
-                        step_dict['override_params'] = json.dumps(step_dict['override_params'])
-                    if step_dict.get('override_body') and isinstance(step_dict['override_body'], dict):
-                        step_dict['override_body'] = json.dumps(step_dict['override_body'])
-                    if step_dict.get('override_cookies') and isinstance(step_dict['override_cookies'], list):
-                        step_dict['override_cookies'] = json.dumps(step_dict['override_cookies'])
-                    if step_dict.get('assertions') and isinstance(step_dict['assertions'], list):
-                        step_dict['assertions'] = json.dumps(step_dict['assertions'])
-                    if step_dict.get('extractors') and isinstance(step_dict['extractors'], list):
-                        step_dict['extractors'] = json.dumps(step_dict['extractors'])
-                    if step_dict.get('timeout_config') and isinstance(step_dict['timeout_config'], dict):
-                        step_dict['timeout_config'] = json.dumps(step_dict['timeout_config'])
-                    if step_dict.get('execution_condition') and isinstance(step_dict['execution_condition'], dict):
-                        step_dict['execution_condition'] = json.dumps(step_dict['execution_condition'])
+                    # Convert JSON fields to strings
+                    for field_name, config in TEST_STEP_JSON_FIELDS.items():
+                        field_value = step_dict.get(field_name)
+                        if field_value and isinstance(field_value, config['type']):
+                            step_dict[field_name] = self._safe_json_dumps(
+                                field_value,
+                                field_name=f"步骤{field_name}"
+                            )
                     
                     step = TestCaseStep(
                         test_case_id=test_case_id,
