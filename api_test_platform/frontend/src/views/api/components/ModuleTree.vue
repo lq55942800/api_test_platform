@@ -27,7 +27,20 @@
               <el-icon v-else class="node-icon"><Folder /></el-icon>
               <span class="node-label">{{ data.name }}</span>
             </div>
-            <span class="node-count" v-if="data.api_count !== undefined">{{ data.api_count }}</span>
+            <div class="node-right">
+              <span class="node-count" v-if="data.api_count !== undefined">{{ data.api_count }}</span>
+              <div v-if="data.id !== 0" class="node-actions">
+                <el-button type="primary" link size="small" @click.stop="handleAddChild(data.id)" title="添加子模块">
+                  <el-icon size="13"><Plus /></el-icon>
+                </el-button>
+                <el-button type="primary" link size="small" @click.stop="handleEdit(data)" title="编辑">
+                  <el-icon size="13"><Edit /></el-icon>
+                </el-button>
+                <el-button type="danger" link size="small" @click.stop="handleDelete(data)" title="删除">
+                  <el-icon size="13"><Delete /></el-icon>
+                </el-button>
+              </div>
+            </div>
           </div>
         </template>
       </el-tree>
@@ -58,7 +71,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Grid, Folder } from '@element-plus/icons-vue'
+import { Plus, Grid, Folder, Edit, Delete } from '@element-plus/icons-vue'
 import { useModuleStore } from '@/stores/api'
 import type { ApiModule, ApiModuleCreate } from '@/types/api'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -221,8 +234,10 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   align-items: center;
   justify-content: space-between;
   flex: 1;
-  padding-right: 12px;
+  padding-right: 4px;
   height: 100%;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .node-left {
@@ -231,6 +246,14 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   gap: 6px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
+}
+
+.node-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .node-icon {
@@ -250,6 +273,8 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.4;
+  flex: 1;
+  min-width: 0;
 }
 
 .node-count {
@@ -261,6 +286,21 @@ defineExpose({ handleAddChild, handleEdit, handleDelete })
   border-radius: 10px;
   flex-shrink: 0;
   line-height: 1.6;
+}
+
+.node-actions {
+  display: none;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+:deep(.el-tree-node__content:hover) .node-actions {
+  display: flex;
+}
+
+:deep(.el-tree-node__content:hover) .node-count {
+  display: none;
 }
 
 :deep(.el-tree) {
